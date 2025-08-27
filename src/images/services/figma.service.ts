@@ -3,7 +3,7 @@ import { ConfigService } from '@nestjs/config';
 import axios, { AxiosInstance } from 'axios';
 import { FigmaImageDto } from '../dto/figma-image.dto';
 
-interface FigmaComponent {
+export interface FigmaComponent {
   key: string;
   name: string;
   description: string;
@@ -116,6 +116,7 @@ export class FigmaService {
   private async getComponentInfo(figmaApi: AxiosInstance, fileId: string, componentIds: string[]): Promise<Record<string, FigmaComponent>> {
     try {
       const response = await figmaApi.get<FigmaFileResponse>(`/files/${fileId}`);
+      
       const components = response.data.components || {};
       
       // Filter only requested components
@@ -188,9 +189,9 @@ export class FigmaService {
       const response = await figmaApi.get<FigmaFileResponse>(`/files/${fileId}`);
       const components = response.data.components || {};
 
-      return Object.entries(components).map(([key, component]) => ({
-        key,
+      return Object.entries(components).map(([componentKey, component]) => ({
         ...component,
+        key: componentKey,
       }));
     } catch (error) {
       this.logger.error('Error fetching available components', error);

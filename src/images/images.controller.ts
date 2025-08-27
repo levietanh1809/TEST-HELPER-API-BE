@@ -11,8 +11,9 @@ import {
 } from '@nestjs/common';
 import { ImagesService } from './services/images.service';
 import { GetImagesQueryDto, GetImagesResponseDto, GetImagesByIdsDto } from './dto/figma-image.dto';
+import { FigmaComponent } from './services/figma.service';
 
-@Controller('api/v1/images')
+@Controller('api/images/')
 export class ImagesController {
   private readonly logger = new Logger(ImagesController.name);
 
@@ -21,13 +22,13 @@ export class ImagesController {
   /**
    * Main endpoint: Get images from Figma using component IDs from Google Sheets
    */
-  @Get('from-sheet')
+  @Post('from-sheet')
   @HttpCode(HttpStatus.OK)
-  async getImagesFromSheet(@Query() query: GetImagesQueryDto): Promise<GetImagesResponseDto> {
-    this.logger.log('GET /api/v1/images/from-sheet called');
+  async getImagesFromSheet(@Body() body: GetImagesQueryDto): Promise<GetImagesResponseDto> {
+    this.logger.log('POST /api/images/from-sheet called');
     
     try {
-      const result = await this.imagesService.getImagesFromSheet(query);
+      const result = await this.imagesService.getImagesFromSheet(body);
       
       this.logger.log(`Request completed. Success: ${result.success}, Count: ${result.totalCount}`);
       
@@ -127,7 +128,7 @@ export class ImagesController {
   async getAvailableComponents(
     @Query('figmaAccessToken') figmaAccessToken: string,
     @Query('figmaFileId') figmaFileId: string,
-  ) {
+  ): Promise<{ success: boolean; data: FigmaComponent[]; totalCount: number }> {
     this.logger.log('GET /api/v1/images/components called');
     
     try {

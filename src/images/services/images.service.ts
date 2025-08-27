@@ -1,5 +1,5 @@
 import { Injectable, Logger, BadRequestException } from '@nestjs/common';
-import { FigmaService } from './figma.service';
+import { FigmaService, FigmaComponent } from './figma.service';
 import { GoogleSheetsService } from './google-sheets.service';
 import { FigmaImageDto, GetImagesQueryDto, GetImagesResponseDto } from '../dto/figma-image.dto';
 
@@ -128,7 +128,7 @@ export class ImagesService {
     }
   }
 
-  async getAvailableComponents(accessToken: string, fileId: string) {
+  async getAvailableComponents(accessToken: string, fileId: string): Promise<FigmaComponent[]> {
     try {
       return await this.figmaService.getAvailableComponents(accessToken, fileId);
     } catch (error) {

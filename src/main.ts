@@ -1,11 +1,15 @@
 import { NestFactory } from '@nestjs/core';
 import { ValidationPipe, Logger } from '@nestjs/common';
 import { AppModule } from './app.module';
+import { WinstonModule } from 'nest-winston';
+import { createWinstonConfig } from '../logger.config';
 
 async function bootstrap() {
   const logger = new Logger('Bootstrap');
   
-  const app = await NestFactory.create(AppModule);
+  const app = await NestFactory.create(AppModule, {
+    logger: WinstonModule.createLogger(createWinstonConfig()),
+  });
 
   // Enable CORS for frontend integration
   app.enableCors({

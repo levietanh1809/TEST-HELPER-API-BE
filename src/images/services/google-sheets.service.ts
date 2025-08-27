@@ -13,18 +13,32 @@ export class GoogleSheetsService {
 
   private initializeGoogleSheets() {
     try {
+      const serviceAccountEmail = this.configService.get<string>('googleSheets.serviceAccount.email');
+      const privateKey = this.configService.get<string>('googleSheets.serviceAccount.privateKey');
+
+      if (!serviceAccountEmail || !privateKey) {
+        throw new Error('Service account email and private key are required');
+      }
+
+      this.logger.log('Initializing Google Sheets with service account authentication');
+
       const auth = new google.auth.GoogleAuth({
         credentials: {
-          client_email: this.configService.get<string>('googleSheets.serviceAccount.email'),
-          private_key: this.configService.get<string>('googleSheets.serviceAccount.privateKey')?.replace(/\\n/g, '\n'),
+          client_email: serviceAccountEmail,
+          private_key: privateKey.replace(/\\n/g, '\n'),
+          type: 'service_account',
         },
-        scopes: ['https://www.googleapis.com/auth/spreadsheets.readonly'],
+        scopes: [
+          'https://www.googleapis.com/auth/spreadsheets.readonly',
+          'https://www.googleapis.com/auth/drive.readonly'
+        ],
       });
 
       this.sheets = google.sheets({ version: 'v4', auth });
+      this.logger.log('Google Sheets API initialized successfully');
     } catch (error) {
       this.logger.error('Failed to initialize Google Sheets API', error);
-      throw new BadRequestException('Google Sheets configuration error');
+      throw new BadRequestException(`Google Sheets configuration error: ${error.message}`);
     }
   }
 
@@ -43,6 +57,8 @@ export class GoogleSheetsService {
         range: sheetRange,
       });
 
+      this.logger.log(`response: ${JSON.stringify(response)}`);
+
       const rows = response.data.values;
       if (!rows || rows.length === 0) {
         this.logger.warn('No data found in the specified range');
@@ -59,11 +75,29 @@ export class GoogleSheetsService {
       return componentIds;
 
     } catch (error) {
-      this.logger.error('Error fetching data from Google Sheets', error);
+      this.logger.error('Error fetching data from Google Sheets', {
+        message: error.message,
+        status: error.status,
+        code: error.code,
+        details: error.details
+      });
+      
       if (error instanceof BadRequestException) {
         throw error;
       }
-      throw new BadRequestException('Failed to fetch data from Google Sheets');
+
+      // Handle specific Google API errors
+      if (error.status === 401) {
+        throw new BadRequestException('Authentication failed. Please check your service account credentials.');
+      } else if (error.status === 403) {
+        throw new BadRequestException('Access denied. Please share the Google Sheet with your service account email.');
+      } else if (error.status === 404) {
+        throw new BadRequestException('Google Sheet not found. Please check the sheet ID.');
+      } else if (error.message?.includes('unregistered callers')) {
+        throw new BadRequestException('API authentication failed. Please check your service account configuration.');
+      }
+
+      throw new BadRequestException(`Failed to fetch data from Google Sheets: ${error.message}`);
     }
   }
 
