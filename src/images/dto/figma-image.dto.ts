@@ -5,21 +5,15 @@ export class FigmaImageDto {
   @IsNotEmpty()
   componentId: string;
 
-  @IsString()
-  @IsNotEmpty()
-  componentName: string;
-
   @IsUrl()
   @IsNotEmpty()
   imageUrl: string;
 
   @IsOptional()
-  @IsString()
-  format?: string;
+  width?: number;
 
   @IsOptional()
-  @IsString()
-  scale?: string;
+  height?: number;
 }
 
 export class GetImagesQueryDto {

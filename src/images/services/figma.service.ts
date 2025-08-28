@@ -14,9 +14,34 @@ interface FigmaImageResponse {
   images: Record<string, string>;
 }
 
+interface FigmaAbsoluteBoundingBox {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
+
+interface FigmaNode {
+  id: string;
+  name: string;
+  type: string;
+  absoluteBoundingBox?: FigmaAbsoluteBoundingBox;
+  children?: FigmaNode[];
+}
+
+interface FigmaNodeResponse {
+  document: FigmaNode;
+  components?: Record<string, FigmaComponent>;
+}
+
 interface FigmaFileResponse {
   name: string;
   components: Record<string, FigmaComponent>;
+}
+
+interface FigmaNodesResponse {
+  name: string;
+  nodes: Record<string, FigmaNodeResponse>;
 }
 
 @Injectable()
@@ -24,6 +49,46 @@ export class FigmaService {
   private readonly logger = new Logger(FigmaService.name);
 
   constructor(private configService: ConfigService) {}
+
+  private async retryWithBackoff<T>(
+    operation: () => Promise<T>,
+    maxRetries: number = 3,
+    context: string = 'operation'
+  ): Promise<T> {
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      try {
+        return await operation();
+      } catch (error) {
+        if (attempt === maxRetries) {
+          this.logger.error(`${context} failed after ${maxRetries} attempts`, error);
+          throw error;
+        }
+
+        const isRetryableError = 
+          error.code === 'ECONNABORTED' || // Timeout
+          error.code === 'ENOTFOUND' ||    // DNS issues
+          error.response?.status === 429 || // Rate limit
+          error.response?.status >= 500;    // Server errors
+
+        if (!isRetryableError) {
+          this.logger.error(`${context} failed with non-retryable error`, error);
+          throw error;
+        }
+
+        const delay = Math.pow(2, attempt) * 1000; // Exponential backoff: 2s, 4s, 8s
+        this.logger.warn(`${context} attempt ${attempt} failed, retrying in ${delay}ms`, {
+          error: error.message,
+          code: error.code,
+          status: error.response?.status
+        });
+        
+        await new Promise(resolve => setTimeout(resolve, delay));
+      }
+    }
+    
+    // This should never be reached due to the throw statements above, but TypeScript needs this
+    throw new Error(`${context} failed unexpectedly after ${maxRetries} attempts`);
+  }
 
   private createFigmaApi(accessToken: string): AxiosInstance {
     if (!accessToken) {
@@ -35,7 +100,7 @@ export class FigmaService {
       headers: {
         'X-Figma-Token': accessToken,
       },
-      timeout: 30000, // 30 seconds timeout
+      timeout: 60000, // Increased to 60 seconds for large recursive operations
     });
   }
 
@@ -59,28 +124,44 @@ export class FigmaService {
       this.logger.log(`Fetching images for ${componentIds.length} components`);
 
       const figmaApi = this.createFigmaApi(accessToken);
+      this.logger.log(`Figma API created`);
 
-      // Get component information first
-      const componentInfo = await this.getComponentInfo(figmaApi, fileId, componentIds);
+      // Get node information first (includes dimensions)
+      const nodeInfo = await this.getNodeInfo(figmaApi, fileId, componentIds);
+      this.logger.log(`Node info fetched: ${Object.keys(nodeInfo)} nodes`);
       
-      // Get image URLs
-      const imageUrls = await this.getImageUrls(figmaApi, fileId, componentIds, format, scale);
-
-      // Combine component info with image URLs
+      // Process nodes recursively - collect all IDs including children for large components
+      const allComponentIds = await this.processNodesRecursively(figmaApi, fileId, componentIds, nodeInfo);
+      this.logger.log(`Total component IDs after recursive processing: ${allComponentIds}`);
+      
+      // Get image URLs for all collected IDs
+      const imageUrls = await this.getImageUrls(figmaApi, fileId, allComponentIds, format, scale);
+      this.logger.log(`Image URLs fetched: ${Object.keys(imageUrls).length} images`);
+      
+      // Get node info for all collected IDs (including children)
+      const allNodeInfo = await this.getNodeInfo(figmaApi, fileId, allComponentIds);
+      
+      // Combine node info with image URLs
       const results: FigmaImageDto[] = [];
       
-      for (const componentId of componentIds) {
-        const info = componentInfo[componentId];
+      this.logger.log(`Processing ${allComponentIds.length} component IDs for final results`);
+      for (const componentId of allComponentIds) {
         const imageUrl = imageUrls[componentId];
+        const node = allNodeInfo[componentId];
 
-        if (imageUrl && info) {
-          results.push({
+        if (imageUrl) {
+          const result: FigmaImageDto = {
             componentId,
-            componentName: info.name,
             imageUrl,
-            format,
-            scale,
-          });
+          };
+
+          // Add dimensions if available
+          if (node?.absoluteBoundingBox) {
+            result.width = node.absoluteBoundingBox.width;
+            result.height = node.absoluteBoundingBox.height;
+          }
+
+          results.push(result);
         } else {
           this.logger.warn(`No image or info found for component: ${componentId}`);
         }
@@ -113,25 +194,131 @@ export class FigmaService {
     }
   }
 
-  private async getComponentInfo(figmaApi: AxiosInstance, fileId: string, componentIds: string[]): Promise<Record<string, FigmaComponent>> {
-    try {
-      const response = await figmaApi.get<FigmaFileResponse>(`/files/${fileId}`);
+  private async getNodeInfo(figmaApi: AxiosInstance, fileId: string, componentIds: string[]): Promise<Record<string, FigmaNode>> {
+    return this.retryWithBackoff(async () => {
+      this.logger.log(`Fetching node info for ${componentIds.length} components`);
+
+      const response = await figmaApi.get<FigmaNodesResponse>(`/files/${fileId}/nodes?ids=${componentIds.join(',')}`);
+      this.logger.log('response');
+      this.logger.log(response);
+
+      this.logger.log(`Node info response status: ${response.status}`);
       
-      const components = response.data.components || {};
+      const nodes = response.data.nodes || {};
       
-      // Filter only requested components
-      const requestedComponents: Record<string, FigmaComponent> = {};
+      // Extract document nodes with dimensions
+      const requestedNodes: Record<string, FigmaNode> = {};
       
       for (const componentId of componentIds) {
-        if (components[componentId]) {
-          requestedComponents[componentId] = components[componentId];
+        const nodeResponse = nodes[componentId];
+        if (nodeResponse?.document) {
+          requestedNodes[componentId] = nodeResponse.document;
         }
       }
 
-      return requestedComponents;
-    } catch (error) {
-      this.logger.error('Error fetching component info', error);
-      throw error;
+      this.logger.log(`Extracted ${Object.keys(requestedNodes).length} nodes with dimensions`);
+      return requestedNodes;
+    }, 3, `getNodeInfo for ${componentIds.length} components`);
+  }
+
+  private collectChildrenIds(node: FigmaNode): string[] {
+    const childrenIds: string[] = [];
+    
+    if (node.children && node.children.length > 0) {
+      for (const child of node.children) {
+        childrenIds.push(child.id);
+        // Recursively collect children of children
+        const grandChildrenIds = this.collectChildrenIds(child);
+        childrenIds.push(...grandChildrenIds);
+      }
+    }
+    
+    return childrenIds;
+  }
+
+  private shouldUseChildren(node: FigmaNode): boolean {
+    if (!node.absoluteBoundingBox) {
+      return false;
+    }
+    
+    const { width, height } = node.absoluteBoundingBox;
+    return width > 500 || height > 500;
+  }
+
+  private async processNodesRecursively(
+    figmaApi: AxiosInstance,
+    fileId: string,
+    componentIds: string[],
+    initialNodeInfo: Record<string, FigmaNode>
+  ): Promise<string[]> {
+    const finalIds = new Set<string>();
+    const allNodeInfo = { ...initialNodeInfo };
+    
+    this.logger.log(`Starting recursive processing with ${componentIds.length} initial components`);
+
+    for (const componentId of componentIds) {
+      await this.processNodeRecursively(figmaApi, fileId, componentId, allNodeInfo, finalIds);
+    }
+
+    const result = Array.from(finalIds);
+    this.logger.log(`Recursive processing complete: ${componentIds.length} initial -> ${result.length} final components`);
+    
+    return result;
+  }
+
+  private async processNodeRecursively(
+    figmaApi: AxiosInstance,
+    fileId: string,
+    nodeId: string,
+    allNodeInfo: Record<string, FigmaNode>,
+    finalIds: Set<string>
+  ): Promise<void> {
+    // Get node info if not already available
+    if (!allNodeInfo[nodeId]) {
+      const nodeInfo = await this.getNodeInfo(figmaApi, fileId, [nodeId]);
+      Object.assign(allNodeInfo, nodeInfo);
+    }
+
+    const node = allNodeInfo[nodeId];
+    if (!node) {
+      this.logger.warn(`Could not find node info for ${nodeId}`);
+      return;
+    }
+
+    if (this.shouldUseChildren(node)) {
+      this.logger.log(`Component ${nodeId} is large (${node.absoluteBoundingBox?.width}x${node.absoluteBoundingBox?.height}), processing children`);
+      
+      const childrenIds = this.collectChildrenIds(node);
+      this.logger.log(`Found ${childrenIds.length} children for component ${nodeId}`);
+      
+      // Batch process children to avoid API overload
+      const batchSize = 10; // Process max 10 children at once
+      for (let i = 0; i < childrenIds.length; i += batchSize) {
+        const batch = childrenIds.slice(i, i + batchSize);
+        this.logger.log(`Processing children batch ${Math.floor(i/batchSize) + 1}/${Math.ceil(childrenIds.length/batchSize)} (${batch.length} items)`);
+        
+        // Fetch batch node info at once for efficiency
+        const missingIds = batch.filter(id => !allNodeInfo[id]);
+        if (missingIds.length > 0) {
+          const batchNodeInfo = await this.getNodeInfo(figmaApi, fileId, missingIds);
+          Object.assign(allNodeInfo, batchNodeInfo);
+        }
+        
+        // Process each child in batch recursively
+        for (const childId of batch) {
+          if (!finalIds.has(childId)) {
+            await this.processNodeRecursively(figmaApi, fileId, childId, allNodeInfo, finalIds);
+          }
+        }
+        
+        // Add small delay between batches to respect API rate limits
+        if (i + batchSize < childrenIds.length) {
+          await new Promise(resolve => setTimeout(resolve, 100)); // 100ms delay
+        }
+      }
+    } else {
+      this.logger.log(`Component ${nodeId} is small or has no children, adding to final results`);
+      finalIds.add(nodeId);
     }
   }
 
@@ -142,7 +329,7 @@ export class FigmaService {
     format: string, 
     scale: string
   ): Promise<Record<string, string>> {
-    try {
+    return this.retryWithBackoff(async () => {
       const idsParam = componentIds.join(',');
       
       const response = await figmaApi.get<FigmaImageResponse>(`/images/${fileId}`, {
@@ -158,10 +345,7 @@ export class FigmaService {
       }
 
       return response.data.images || {};
-    } catch (error) {
-      this.logger.error('Error fetching image URLs', error);
-      throw error;
-    }
+    }, 3, `getImageUrls for ${componentIds.length} components`);
   }
 
   async validateFigmaAccess(accessToken: string, fileId: string): Promise<boolean> {
