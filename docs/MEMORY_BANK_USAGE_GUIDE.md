@@ -43,6 +43,19 @@ và maintain code quality như đã establish."
 🚀 Implement please!
 ```
 
+### 🎯 **Template 1.1: Visible Filter Enhancement (Reference Pattern)**
+```
+📋 Context: FIGMA_INTEGRATION.md section "Visible Instance Filter"  
+🎯 Task: Enhance/modify visible filtering logic
+📐 Pattern đã established:
+- Frame detection → filterVisibleInstances()
+- type === 'INSTANCE' && visible !== false condition
+- Enhanced processNodesRecursively() flow
+- Comprehensive logging cho debugging
+
+🔧 Apply similar pattern cho [new filtering requirement]
+```
+
 ### 🐛 **Template 2: Bug Fixing**
 ```
 📋 Context: Check TROUBLESHOOTING_GUIDE.md cho known issues
@@ -253,6 +266,18 @@ Add type filtering to recursive processing:
 Follow established patterns!"
 ```
 
+### Example 1.1: Visible Instance Filter (IMPLEMENTED!)
+```
+📋 "Reference FIGMA_INTEGRATION.md về visible instance filtering.
+Logic đã implemented:
+- Frame nodes → Filter children cho type='INSTANCE' & visible !== false  
+- processNodesRecursively() enhanced với visible filter
+- filterVisibleInstances() method added
+- Chỉ lấy components 'nhìn thấy' trên UI thay vì tất cả trong design system
+
+Result: Frame 197382:116850 → chỉ 2 components thay vì 8+ definitions!"
+```
+
 ### Example 2: Performance Optimization
 ```
 📋 "Apply DEVELOPMENT_NOTES.md performance strategies:
@@ -365,6 +390,40 @@ Need to understand for [purpose]"
 
 ---
 
+## 🆕 Latest Improvements (Reference)
+
+### ✅ **Type-Based Processing (Today)**
+```typescript
+// NEW: Different logic cho FRAME vs INSTANCE vs Other types
+// FRAME: Process ALL children (no visible filter)
+// INSTANCE: Filter visible children only (visible !== false)
+// Other types: Normal processing logic
+// Implementation: Type checking trong processNodesRecursively()
+// Impact: Optimized processing based on node type characteristics
+```
+
+### ✅ **ComponentId-Based Processing (Today)**
+```typescript
+// NEW: Auto-process children for SMALL nodes without componentId
+// Problem solved: Không thể generate image cho nodes không có componentId
+// Implementation: Enhanced processNodeRecursively() with priority logic
+// PRIORITY 1: Size check first (tránh quá nhiều icon nhỏ)
+// PRIORITY 2: ComponentId check (chỉ cho nodes ≤500px)
+// Logic: if (small && !componentId) → process children
+```
+
+### 🎯 **Usage cho future requests:**
+```
+"Reference FIGMA_INTEGRATION.md visible filter pattern để implement [tương tự requirement]"
+"Apply filterVisibleInstances() logic cho [new use case]"  
+"Follow established visible filtering flow trong processNodesRecursively()"
+"Apply componentId-based processing pattern cho [nodes without componentId]"
+"Use enhanced recursive logic với both visible filter và componentId check"
+```
+
+---
+
 *Usage Guide Last Updated: Today*
+*Latest Feature: Visible Instance Filter documented*  
 *Master this guide = Seamless AI collaboration*
 *Next: Start using these patterns in your requests!*

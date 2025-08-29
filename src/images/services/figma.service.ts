@@ -25,6 +25,8 @@ interface FigmaNode {
   id: string;
   name: string;
   type: string;
+  visible?: boolean;
+  componentId?: string;
   absoluteBoundingBox?: FigmaAbsoluteBoundingBox;
   children?: FigmaNode[];
 }
@@ -199,8 +201,6 @@ export class FigmaService {
       this.logger.log(`Fetching node info for ${componentIds.length} components`);
 
       const response = await figmaApi.get<FigmaNodesResponse>(`/files/${fileId}/nodes?ids=${componentIds.join(',')}`);
-      this.logger.log('response');
-      this.logger.log(response);
 
       this.logger.log(`Node info response status: ${response.status}`);
       
@@ -219,6 +219,30 @@ export class FigmaService {
       this.logger.log(`Extracted ${Object.keys(requestedNodes).length} nodes with dimensions`);
       return requestedNodes;
     }, 3, `getNodeInfo for ${componentIds.length} components`);
+  }
+
+  /**
+   * Filter visible instances from frame children
+   * Only returns direct children that are INSTANCE type and visible !== false
+   */
+  private filterVisibleInstances(frameNode: FigmaNode): string[] {
+    if (!frameNode.children || frameNode.children.length === 0) {
+      this.logger.log(`Frame ${frameNode.id} has no children`);
+      return [];
+    }
+
+    const visibleInstances = frameNode.children.filter(child => {
+      const isInstance = child.type === 'INSTANCE';
+      const isVisible = child.visible !== false; // undefined or true are considered visible
+      
+      this.logger.log(`Child ${child.id}: type=${child.type}, visible=${child.visible}, isInstance=${isInstance}, isVisible=${isVisible}`);
+      
+      return isInstance && isVisible;
+    });
+
+    this.logger.log(`Found ${visibleInstances.length} visible instances in frame ${frameNode.id}`);
+    
+    return visibleInstances.map(instance => instance.id);
   }
 
   private collectChildrenIds(node: FigmaNode): string[] {
@@ -257,7 +281,37 @@ export class FigmaService {
     this.logger.log(`Starting recursive processing with ${componentIds.length} initial components`);
 
     for (const componentId of componentIds) {
-      await this.processNodeRecursively(figmaApi, fileId, componentId, allNodeInfo, finalIds);
+      const node = allNodeInfo[componentId];
+      
+      if (node && node.children) {
+        if (node.type === 'FRAME') {
+          // FRAME: Process ALL children directly (no visible filter)
+          this.logger.log(`Processing FRAME ${componentId}, processing all children directly`);
+          
+          const childrenIds = node.children.map(child => child.id);
+          this.logger.log(`Found ${childrenIds.length} children in FRAME ${componentId}`);
+          
+          for (const childId of childrenIds) {
+            await this.processNodeRecursively(figmaApi, fileId, childId, allNodeInfo, finalIds);
+          }
+        } else if (node.type === 'INSTANCE') {
+          // INSTANCE: Filter for visible instances only
+          this.logger.log(`Processing INSTANCE ${componentId}, filtering for visible children`);
+          
+          const visibleInstanceIds = this.filterVisibleInstances(node);
+          this.logger.log(`Found ${visibleInstanceIds.length} visible children in INSTANCE ${componentId}`);
+          
+          for (const visibleId of visibleInstanceIds) {
+            await this.processNodeRecursively(figmaApi, fileId, visibleId, allNodeInfo, finalIds);
+          }
+        } else {
+          // Other types with children: process normally
+          await this.processNodeRecursively(figmaApi, fileId, componentId, allNodeInfo, finalIds);
+        }
+      } else {
+        // For nodes without children, process normally
+        await this.processNodeRecursively(figmaApi, fileId, componentId, allNodeInfo, finalIds);
+      }
     }
 
     const result = Array.from(finalIds);
@@ -285,11 +339,18 @@ export class FigmaService {
       return;
     }
 
+    // Priority 1: Check size first - if small, keep it (avoid too many small icons)
     if (this.shouldUseChildren(node)) {
       this.logger.log(`Component ${nodeId} is large (${node.absoluteBoundingBox?.width}x${node.absoluteBoundingBox?.height}), processing children`);
       
       const childrenIds = this.collectChildrenIds(node);
       this.logger.log(`Found ${childrenIds.length} children for component ${nodeId}`);
+      
+      if (childrenIds.length === 0) {
+        this.logger.log(`No children found for ${nodeId}, adding to final results anyway`);
+        finalIds.add(nodeId);
+        return;
+      }
       
       // Batch process children to avoid API overload
       const batchSize = 10; // Process max 10 children at once
@@ -317,8 +378,31 @@ export class FigmaService {
         }
       }
     } else {
-      this.logger.log(`Component ${nodeId} is small or has no children, adding to final results`);
-      finalIds.add(nodeId);
+      // Priority 2: Size is small (≤500px) - check componentId
+      const hasComponentId = !!(node.componentId);
+      
+      if (!hasComponentId) {
+        this.logger.log(`Component ${nodeId} is small but has no componentId, processing children`);
+        
+        const childrenIds = this.collectChildrenIds(node);
+        this.logger.log(`Found ${childrenIds.length} children for component ${nodeId}`);
+        
+        if (childrenIds.length === 0) {
+          this.logger.log(`No children found for ${nodeId}, adding to final results anyway`);
+          finalIds.add(nodeId);
+          return;
+        }
+        
+        // Process children to find nodes with componentId
+        for (const childId of childrenIds) {
+          if (!finalIds.has(childId)) {
+            await this.processNodeRecursively(figmaApi, fileId, childId, allNodeInfo, finalIds);
+          }
+        }
+      } else {
+        this.logger.log(`Component ${nodeId} is small and has componentId, adding to final results`);
+        finalIds.add(nodeId);
+      }
     }
   }
 
@@ -382,4 +466,6 @@ export class FigmaService {
       throw new BadRequestException('Failed to fetch available components');
     }
   }
+
+
 }
