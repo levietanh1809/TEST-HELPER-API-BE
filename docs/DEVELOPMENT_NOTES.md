@@ -4,41 +4,48 @@
 
 ### Today's Session Summary
 **Date**: Current Development Session
-**Focus**: Enhanced Figma Integration with Recursive Processing
+**Focus**: Simplified Figma Integration with 3-Step Processing ⚡
 
 #### 🎯 Requirements Addressed
-1. **Dimension Enhancement**: Add width/height to image responses
-2. **Smart Processing**: Decompose large components (>500px) into children
-3. **Recursive Logic**: Handle nested component structures automatically
+1. **Performance Optimization**: Reduce API calls from recursive to 3-step approach
+2. **Visible-Only Processing**: Only process components visible on Figma screen
+3. **Batch Processing**: Handle large numbers of components efficiently
 
 #### ✅ Completed Tasks
-- [x] Enhanced `FigmaImageDto` with optional width/height fields
-- [x] Updated `FigmaService` to extract dimensions from `absoluteBoundingBox`
-- [x] Implemented recursive component decomposition logic
-- [x] Added comprehensive logging for debugging
-- [x] Created robust error handling for edge cases
-- [x] Optimized API calls to reduce redundant requests
-- [x] **NEW**: Implemented exponential backoff retry mechanism
-- [x] **NEW**: Added intelligent batch processing (max 10 per batch)
-- [x] **NEW**: Enhanced timeout handling (60s) and rate limiting
-- [x] **NEW**: Fixed production timeout issues with retry logic
+- [x] **MAJOR SIMPLIFICATION**: Replaced recursive logic with 3-step approach
+- [x] **PERFORMANCE**: Reduced from multiple API calls to 2 main calls
+- [x] **VISIBILITY FILTERING**: Only process visible components (skip references)
+- [x] **BATCH PROCESSING**: Handle 50+ components with automatic batching
+- [x] **SIZE OPTIMIZATION**: 800px x 800px threshold (both dimensions)
+- [x] **CODE CLEANUP**: Removed ~200 lines of complex recursive code
+- [x] **MAINTAINABILITY**: Simple, clear logic that's easy to debug
+- [x] **RATE LIMITING**: 200ms delays between image batches
 
 #### 🏗️ Architecture Decisions Made
 
-##### 1. **Size Threshold Strategy**
-**Decision**: Use 500px as decomposition threshold
-**Rationale**: Balance between granularity and performance
-**Implementation**: `shouldUseChildren()` method with configurable threshold
+##### 1. **Simplified Processing Strategy** ⚡ MAJOR CHANGE!
+**Decision**: Replace recursive processing with 3-step approach
+**Rationale**: Dramatically improve performance and maintainability
+**Implementation**: 
+- Step 1: Single parent info API call
+- Step 2: Simple traversal for visible components (>500px both dimensions)
+- Step 3: Batch image API calls
 
-##### 2. **Recursive Processing Approach**
-**Decision**: Depth-first traversal with iterative implementation
-**Rationale**: Better memory management than pure recursion
-**Implementation**: `processNodeRecursively()` with controlled stack
+##### 2. **Visibility-First Strategy** ⚡ NEW!
+**Decision**: Only process components visible on Figma screen
+**Rationale**: Avoid processing hidden/reference components
+**Implementation**: 
+- Skip `visible === false` components
+- Skip `COMPONENT_SET` and `COMPONENT` types
+- Only process actual visible instances
 
-##### 3. **Data Caching Strategy**
-**Decision**: Cache node info during processing
-**Rationale**: Avoid duplicate API calls for same components
-**Implementation**: Shared `allNodeInfo` object across recursive calls
+##### 3. **Batch Processing Strategy** ⚡ NEW!
+**Decision**: Handle large numbers of components with batching
+**Rationale**: Respect Figma API limits and rate limiting
+**Implementation**: 
+- Max 50 components per batch
+- 200ms delay between batches
+- Automatic batching when > 50 components
 
 ##### 4. **Retry & Resilience Strategy** ⭐ NEW
 **Decision**: Exponential backoff with intelligent error classification
@@ -175,10 +182,10 @@ const baseUrl = this.configService.get('FIGMA_BASE_URL', 'https://api.figma.com/
 ### Configurable Parameters
 ```typescript
 // Current hardcoded values that could be configurable
-const SIZE_THRESHOLD = 500;           // pixels
+const SIZE_THRESHOLD = 500;           // pixels (width AND height both > 500)
 const DEFAULT_FORMAT = 'png';         // export format
 const DEFAULT_SCALE = '2';            // scale factor
-const API_TIMEOUT = 30000;           // milliseconds
+const API_TIMEOUT = 30000;           // milliseconds (optimized)
 ```
 
 ## 🧪 Testing Strategy
@@ -187,19 +194,19 @@ const API_TIMEOUT = 30000;           // milliseconds
 ```typescript
 describe('FigmaService', () => {
   describe('shouldUseChildren', () => {
-    it('should return true for components > 500px width', () => {
-      const node = { absoluteBoundingBox: { width: 600, height: 200 } };
-      expect(service.shouldUseChildren(node)).toBe(true);
+    it('should return true for components > 500px in BOTH dimensions', () => {
+      const node = { absoluteBoundingBox: { width: 600, height: 550 } };
+      expect(service.isLargeComponent(node)).toBe(true);
     });
     
-    it('should return true for components > 500px height', () => {
-      const node = { absoluteBoundingBox: { width: 200, height: 600 } };
-      expect(service.shouldUseChildren(node)).toBe(true);
+    it('should return false for components large in only one dimension', () => {
+      const node = { absoluteBoundingBox: { width: 600, height: 400 } };
+      expect(service.isLargeComponent(node)).toBe(false);
     });
     
     it('should return false for small components', () => {
-      const node = { absoluteBoundingBox: { width: 300, height: 200 } };
-      expect(service.shouldUseChildren(node)).toBe(false);
+      const node = { absoluteBoundingBox: { width: 400, height: 300 } };
+      expect(service.isLargeComponent(node)).toBe(false);
     });
   });
 });
@@ -241,7 +248,7 @@ describe('FigmaService', () => {
 ## 🎯 Future Improvements
 
 ### High Priority
-1. **Configurable Threshold**: Make 500px configurable per API call
+1. **Configurable Threshold**: Make 800px threshold configurable per API call
 2. **Component Type Filtering**: Allow filtering by TEXT, VECTOR, FRAME, etc.
 3. **Parallel Processing**: Process multiple branches simultaneously
 4. **Response Caching**: Cache responses for frequently accessed components

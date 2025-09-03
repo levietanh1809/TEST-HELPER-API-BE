@@ -34,6 +34,10 @@ export class GetImagesQueryDto {
   figmaAccessToken: string;
 
   @IsOptional()
+  @IsArray()
+  specificNodeId?: string[];
+
+  @IsOptional()
   @IsString()
   format?: 'png' | 'jpg' | 'svg' | 'pdf';
 

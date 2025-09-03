@@ -20,7 +20,8 @@ export class ImagesController {
   constructor(private readonly imagesService: ImagesService) {}
 
   /**
-   * Main endpoint: Get images from Figma using component IDs from Google Sheets
+   * Main endpoint: Get images from Figma using specific node IDs or component IDs from Google Sheets
+   * If specificNodeId is provided, it will be used instead of Google Sheets
    */
   @Post('from-sheet')
   @HttpCode(HttpStatus.OK)

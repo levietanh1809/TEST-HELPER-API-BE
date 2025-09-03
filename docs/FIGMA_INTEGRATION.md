@@ -1,62 +1,64 @@
-# 🎨 Figma Integration - Technical Deep Dive
+# 🎨 Figma Integration - Simplified Approach ⚡
 
 ## 🎯 Overview
-Advanced Figma API integration with intelligent recursive component processing for automated image extraction.
+Simplified Figma API integration with efficient 3-step processing for automated image extraction from visible components only.
 
-## 🏗️ Architecture
+## 🏗️ Simplified Architecture
 
-### Core Components
+### Core Components (3-Step Process)
 
 ```typescript
-// Main Service Entry Point
+// Simplified Service Entry Point
 FigmaService.getComponentImages()
-├── getNodeInfo() - Fetch component dimensions & structure
-├── processNodesRecursively() - Smart component decomposition  
-├── getImageUrls() - Extract actual image URLs
-└── Return enhanced FigmaImageDto[]
+├── Step 1: getNodeInfo() - Single API call for parent info
+├── Step 2: collectVisibleImageIds() - Traverse children for visible IDs
+├── Step 3: getBatchedImageUrls() - Batch image API calls
+└── Return FigmaImageDto[]
 ```
 
-## 🧠 Intelligent Processing Logic
+## 🧠 Simplified Processing Logic ⚡
 
-### 1. Type-Based Processing (NEW!)
-**Rule**: Different processing logic based on node type
+### 1. Single Parent Info Call
+**Rule**: Get all parent component information in one API call
 
 ```typescript
-// Type-Based Children Processing (Applied FIRST)
-if (node.type === 'FRAME' && node.children) {
-  allChildren = node.children.map(child => child.id)
-  → Process ALL children directly (no visible filter)
-} else if (node.type === 'INSTANCE' && node.children) {
-  visibleChildren = node.children.filter(child => 
-    child.type === 'INSTANCE' && child.visible !== false
-  )
-  → Process only visible INSTANCE children
-} else {
-  → Process node normally
-}
+// Step 1: Single API call for parent info
+const parentNodeInfo = await this.getNodeInfo(figmaApi, fileId, componentIds);
+// No recursive calls, no complex type checking
 ```
 
-**Use Case**: Phân biệt xử lý theo type để optimize processing
-- **FRAME**: Container → process ALL children để tìm components
-- **INSTANCE**: Component → chỉ process visible children để tránh hidden components
+**Benefit**: Dramatically reduced API calls compared to recursive approach
 
-### 2. Size-Based Component Decomposition (Priority 1)
-
-**Rule**: If component dimensions > 500px (width OR height) → Extract children instead
+### 2. Visible Component Collection
+**Rule**: Only collect components visible on Figma screen (not references)
 
 ```typescript
-// Priority 1: Size Check (Applied FIRST - tránh quá nhiều icon nhỏ)
-if (width > 500 || height > 500) {
-  → Get all children components
-  → Process each child recursively
-  → Continue until all components ≤ 500px
-} else {
-  → Component ≤ 500px → Check componentId
-}
+// Step 2: Collect visible image IDs
+const validImageIds = this.collectVisibleImageIds(parentNodeInfo);
+
+// Logic:
+// - Skip hidden components (visible === false)
+// - Skip reference components (COMPONENT_SET, COMPONENT)
+// - If component > 800px x 800px → get children
+// - If component ≤ 800px → use directly
 ```
 
-### 3. ComponentId-Based Processing (Priority 2)
-**Rule**: Only for small components (≤500px) - if no componentId → Process children
+**Benefit**: Only process components that users can actually see
+
+### 3. Batch Image Processing
+**Rule**: Handle large numbers of images efficiently with batching
+
+```typescript
+// Step 3: Batch image API calls
+const imageUrls = await this.getBatchedImageUrls(figmaApi, fileId, validImageIds, format, scale);
+
+// Logic:
+// - Max 50 components per batch (Figma API limit)
+// - 200ms delay between batches (rate limit protection)
+// - Automatic batching if > 50 components
+```
+
+**Benefit**: Can handle hundreds of components without API limits
 
 ```typescript
 // Priority 2: ComponentId Check (Applied ONLY for small components)
@@ -68,97 +70,77 @@ if (component_is_small && !node.componentId) {
 }
 ```
 
-### 4. Enhanced Recursive Algorithm
+### 4. Simplified Collection Algorithm ⚡
 
 ```typescript
-processNodesRecursively(componentIds) {
-  for (componentId of componentIds) {
-    node = getNodeInfo(componentId)
-    
-    if (node.children) {
-      if (node.type === 'FRAME') {
-        // 🎯 FRAME: Process ALL children (no visible filter)
-        allChildren = node.children.map(child => child.id)
-        for (childId of allChildren) {
-          processNodeRecursively(childId) // 🔄 RECURSION
-        }
-      } else if (node.type === 'INSTANCE') {
-        // 🎯 INSTANCE: Filter visible children only
-        visibleChildren = filterVisibleInstances(node)
-        for (visibleId of visibleChildren) {
-          processNodeRecursively(visibleId) // 🔄 RECURSION
-        }
+// No more recursion! Simple traversal
+collectVisibleImageIds(parentNodeInfo) {
+  validIds = []
+  
+  for (parentId, parentNode of parentNodeInfo) {
+    if (isVisibleComponent(parentNode)) {
+      if (isLargeComponent(parentNode)) {
+        // Parent > 800x800px → get children
+        childIds = getVisibleChildren(parentNode)
+        validIds.push(...childIds)
       } else {
-        // Other types: process normally
-        processNodeRecursively(componentId)
+        // Parent is good size → use directly
+        validIds.push(parentId)
       }
     } else {
-      processNodeRecursively(componentId)
+      // Parent not suitable → try children
+      childIds = getVisibleChildren(parentNode)
+      validIds.push(...childIds)
     }
   }
+  
+  return [...new Set(validIds)] // Remove duplicates
 }
 
-processNodeRecursively(nodeId) {
-  node = getNodeInfo(nodeId)
-  
-  // 🚨 PRIORITY 1: Size check first (tránh quá nhiều icon nhỏ)
-  if (shouldUseChildren(node)) {
-    // Node quá lớn → process children
-    children = collectChildrenIds(node)
-    for (child in children) {
-      processNodeRecursively(child) // 🔄 RECURSION
-    }
-  } else {
-    // 🚨 PRIORITY 2: Node nhỏ (≤500px) → check componentId
-    hasComponentId = !!(node.componentId)
+getVisibleChildren(parentNode) {
+  for (child of parentNode.children) {
+    // Skip hidden: child.visible === false
+    // Skip references: COMPONENT_SET, COMPONENT
     
-    if (!hasComponentId) {
-      // Node nhỏ nhưng không có componentId → process children
-      children = collectChildrenIds(node)
-      for (child in children) {
-        processNodeRecursively(child) // 🔄 RECURSION
-      }
+    if (isLargeComponent(child)) {
+      // Child large → get its children
+      grandChildIds = getVisibleChildren(child)
+      visibleIds.push(...grandChildIds)
     } else {
-      finalResults.add(nodeId) // ✅ Node nhỏ VÀ có componentId
+      // Child good size → add it
+      visibleIds.push(child.id)
     }
   }
 }
 ```
 
-## 📊 Enhanced Data Flow
+## 📊 Simplified Data Flow ⚡
 
 ```mermaid
 graph TD
-    A[Input: Component IDs] --> B[Get Node Info]
-    B --> C{Node Type?}
-    C -->|FRAME| D[Process ALL Children]
-    C -->|INSTANCE| E[Filter Visible Children]
-    C -->|Other| F{Size > 500px?}
-    D --> G[Process Each Child]
-    E --> H[Process Visible Children]
-    G --> F
-    H --> F
-    F -->|Yes| I[Extract Children - Large]
-    F -->|No| J{Has ComponentId?}
-    I --> K[Process Each Child]
-    K --> F
-    J -->|No| L[Extract Children - No ComponentId]
-    J -->|Yes| M[Add to Final Results]
-    L --> N[Process Each Child]
-    N --> F
-    M --> O[Get Image URLs]
-    O --> P[Return Enhanced Data]
+    A[Input: Component IDs] --> B[Step 1: Get Parent Node Info]
+    B --> C[Step 2: Collect Visible Image IDs]
+    C --> D{Component Visible?}
+    D -->|No| E[Skip Hidden/Reference]
+    D -->|Yes| F{Both W & H > 500?}
+    F -->|Yes| G[Get Visible Children]
+    F -->|No| H[Add to Valid IDs]
+    G --> I[Check Each Child]
+    I --> F
+    E --> J[Step 3: Batch Image API Calls]
+    H --> J
+    J --> K[Return Image Data]
 ```
 
-### Flow Explanation:
-1. **NEW Step**: Check node type (FRAME vs INSTANCE vs Other)
-2. **NEW Step**: 
-   - FRAME → Process ALL children (no filtering)
-   - INSTANCE → Filter visible children only
-   - Other → Continue to priority logic
-3. **PRIORITY 1**: Size-based decomposition (tránh quá nhiều icon nhỏ)
-4. **PRIORITY 2**: ComponentId check (chỉ cho small components)
-5. **Existing**: Recursive processing until optimal components found
+### Simplified Flow Explanation:
+1. **Step 1**: Single API call to get all parent component info
+2. **Step 2**: Simple traversal to collect visible image IDs:
+   - Skip hidden components (`visible === false`)
+   - Skip reference components (`COMPONENT_SET`, `COMPONENT`)
+   - If component > 500px (both dimensions) → get children
+   - If component ≤ 500px (either dimension) → use directly
+3. **Step 3**: Batch image API calls (max 50 per batch)
+4. **Result**: Only visible, usable components returned
 
 ## 💾 Enhanced Data Structure
 
@@ -185,96 +167,150 @@ FigmaImageDto[] = [
 ]
 ```
 
-## 🔧 Key Methods Deep Dive
+## 🔧 Key Methods Deep Dive ⚡
 
-### 1. `filterVisibleInstances()` (NEW!)
-**Purpose**: Filter frame children to only get visible INSTANCE components
+### 1. `collectVisibleImageIds()` (SIMPLIFIED!)
+**Purpose**: Collect all visible image IDs from parent nodes in one pass
 
 ```typescript
-// Input: Frame node with children
-// Output: Array of visible instance IDs
-filterVisibleInstances(frameNode: FigmaNode): string[] {
-  if (!frameNode.children) return []
+// Input: Parent node info from single API call
+// Output: Array of valid image IDs
+collectVisibleImageIds(parentNodeInfo: Record<string, FigmaNode>): string[] {
+  const validIds: string[] = []
   
-  const visibleInstances = frameNode.children.filter(child => {
-    const isInstance = child.type === 'INSTANCE'
-    const isVisible = child.visible !== false // undefined = visible
-    return isInstance && isVisible
-  })
-  
-  return visibleInstances.map(instance => instance.id)
-}
-```
-
-**Real Example (Figma Frame 197382:116850):**
-```typescript
-// Input Frame has:
-// - componentSets: 3 items (Button, Tag, Icon-Wrapper)  
-// - components: 5 items (variants + individual icons)
-// - document.children: 2 visible instances
-
-// Filter Result: ["197382:116851", "197382:116852"]
-// → Only 2 components user actually sees on canvas
-```
-
-### 2. `getNodeInfo()`
-**Purpose**: Fetch component structure and dimensions from Figma API
-
-```typescript
-// API Call: GET /files/{fileId}/nodes?ids=...
-// Returns: Node structure with absoluteBoundingBox
-{
-  nodes: {
-    "componentId": {
-      document: {
-        id: "componentId",
-        absoluteBoundingBox: { x, y, width, height },
-        children: [...] // Nested structure
+  for (const [parentId, parentNode] of Object.entries(parentNodeInfo)) {
+    if (this.isVisibleComponent(parentNode)) {
+      if (this.isLargeComponent(parentNode)) {
+        // Parent > 800x800px → get children
+        const childIds = this.getVisibleChildren(parentNode)
+        validIds.push(...childIds)
+      } else {
+        // Parent good size → use directly
+        validIds.push(parentId)
       }
+    } else {
+      // Parent not suitable → try children
+      const childIds = this.getVisibleChildren(parentNode)
+      validIds.push(...childIds)
     }
   }
+  
+  return [...new Set(validIds)] // Remove duplicates
 }
 ```
 
-### 2. `collectChildrenIds()`
-**Purpose**: Recursively extract all child component IDs
+**Benefits:**
+- No recursive API calls
+- Only visible components collected
+- Reference components skipped
+- Efficient single-pass processing
+
+### 2. `isVisibleComponent()` (NEW!)
+**Purpose**: Check if component is visible and suitable for image extraction
 
 ```typescript
-collectChildrenIds(node) {
-  childrenIds = []
-  for (child in node.children) {
-    childrenIds.push(child.id)
-    // 🔄 Recursive call for nested children
-    childrenIds.push(...collectChildrenIds(child))
+// Input: Individual node
+// Output: Boolean - is this component visible and usable?
+isVisibleComponent(node: FigmaNode): boolean {
+  // Must be visible (not hidden)
+  if (node.visible === false) {
+    return false
   }
-  return childrenIds
+  
+  // Skip reference/definition components - only visible instances
+  if (node.type === 'COMPONENT_SET' || node.type === 'COMPONENT') {
+    return false
+  }
+  
+  return true
 }
 ```
 
-### 3. `shouldUseChildren()`
-**Purpose**: Decision logic for component decomposition
+**Key Rules:**
+- `visible !== false` (undefined or true = visible)
+- Skip `COMPONENT_SET` and `COMPONENT` (references only)
+- Only actual visible instances on screen
+
+### 3. `getVisibleChildren()` (SIMPLIFIED!)
+**Purpose**: Get visible children IDs from a parent node (non-recursive)
 
 ```typescript
-shouldUseChildren(node) {
+getVisibleChildren(parentNode: FigmaNode): string[] {
+  if (!parentNode.children) return []
+  
+  const visibleIds: string[] = []
+  
+  for (const child of parentNode.children) {
+    // Skip hidden children
+    if (child.visible === false) continue
+    
+    // Skip reference/definition components
+    if (child.type === 'COMPONENT_SET' || child.type === 'COMPONENT') continue
+    
+    if (this.isLargeComponent(child)) {
+      // Child large → get its children
+      const grandChildIds = this.getVisibleChildren(child)
+      visibleIds.push(...grandChildIds)
+    } else {
+      // Child good size → add it
+      visibleIds.push(child.id)
+    }
+  }
+  
+  return visibleIds
+}
+```
+
+**Simplification:**
+- No complex recursive API calls
+- Simple traversal of existing data
+- Clear visible/hidden logic
+
+### 4. `getBatchedImageUrls()` (NEW!)
+**Purpose**: Handle large numbers of image API calls efficiently
+
+```typescript
+getBatchedImageUrls(figmaApi, fileId, componentIds, format, scale) {
+  const maxBatchSize = 50 // Figma API limit
+  const allImages = {}
+  
+  // Split into batches if needed
+  for (let i = 0; i < componentIds.length; i += maxBatchSize) {
+    const batch = componentIds.slice(i, i + maxBatchSize)
+    const batchImages = await this.getImageUrls(figmaApi, fileId, batch, format, scale)
+    Object.assign(allImages, batchImages)
+    
+    // 200ms delay between batches
+    if (i + maxBatchSize < componentIds.length) {
+      await new Promise(resolve => setTimeout(resolve, 200))
+    }
+  }
+  
+  return allImages
+}
+```
+
+**Benefits:**
+- Respects Figma API limits (50 components max)
+- Rate limit protection with delays
+- Can handle hundreds of components
+
+### 5. `isLargeComponent()` (SIMPLIFIED!)
+**Purpose**: Simple size check for component decomposition
+
+```typescript
+isLargeComponent(node: FigmaNode): boolean {
   if (!node.absoluteBoundingBox) return false
   
   const { width, height } = node.absoluteBoundingBox
-  return width > 500 || height > 500 // 🎯 500px threshold
+  return width > 500 && height > 500 // Both dimensions large
 }
 ```
 
-### 4. `getImageUrls()`
-**Purpose**: Extract downloadable image URLs
-
-```typescript
-// API Call: GET /images/{fileId}?ids=...&format=png&scale=2
-// Returns: Direct image URLs for download
-{
-  images: {
-    "componentId": "https://s3-alpha.figma.com/image-url"
-  }
-}
-```
+**Rule**: Components > 500px in both dimensions get decomposed
+- Balanced approach - medium-large components get decomposed
+- Better granularity for component extraction
+- Good balance between performance and usability
 
 ## 🔍 Sample Figma Response Structure
 
@@ -337,15 +373,15 @@ shouldUseChildren(node) {
 
 ## 🎛️ Configuration Options
 
-### Current Settings
+### Current Settings ⚡ OPTIMIZED!
 ```typescript
-// Size threshold for decomposition
-const SIZE_THRESHOLD = 500; // pixels
+// Size threshold for decomposition (BOTH dimensions must exceed)
+const SIZE_THRESHOLD = 800; // pixels
 
 // Image export settings
 const DEFAULT_FORMAT = 'png';
 const DEFAULT_SCALE = '2';
-const API_TIMEOUT = 30000; // 30 seconds
+const API_TIMEOUT = 60000; // 60 seconds
 ```
 
 ### Customization Points
@@ -381,15 +417,15 @@ const API_TIMEOUT = 30000; // 30 seconds
 **Expected**: Process children vì size priority (không care componentId)
 **Result**: Size check được ưu tiên, children được process bình thường
 
-### Scenario 3: Small Component (≤500px)
+### Scenario 3: Small Component (≤800px either dimension)
 **Input**: Single small component
 **Expected**: Original component returned
 **Result**: No decomposition occurs
 
-### Scenario 4: Large Component (>500px)
-**Input**: Large frame with children
+### Scenario 4: Very Large Component (>800px both dimensions)
+**Input**: Very large frame with children
 **Expected**: Children components returned instead
-**Result**: Recursive decomposition until all ≤500px
+**Result**: Recursive decomposition until components ≤800px in either dimension
 
 ### Scenario 5: Nested Large Components
 **Input**: Large component with large children

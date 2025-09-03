@@ -77,7 +77,7 @@ export class FigmaService {
           throw error;
         }
 
-        const delay = Math.pow(2, attempt) * 1000; // Exponential backoff: 2s, 4s, 8s
+        const delay = Math.pow(1.5, attempt) * 500; // Faster backoff: 750ms, 1125ms, 1687ms
         this.logger.warn(`${context} attempt ${attempt} failed, retrying in ${delay}ms`, {
           error: error.message,
           code: error.code,
@@ -102,7 +102,7 @@ export class FigmaService {
       headers: {
         'X-Figma-Token': accessToken,
       },
-      timeout: 60000, // Increased to 60 seconds for large recursive operations
+      timeout: 30000, // 30 seconds for optimized operations
     });
   }
 
@@ -123,31 +123,37 @@ export class FigmaService {
         return [];
       }
 
-      this.logger.log(`Fetching images for ${componentIds.length} components`);
+      this.logger.log(`Simplified processing for ${componentIds.length} components`);
 
       const figmaApi = this.createFigmaApi(accessToken);
-      this.logger.log(`Figma API created`);
 
-      // Get node information first (includes dimensions)
-      const nodeInfo = await this.getNodeInfo(figmaApi, fileId, componentIds);
-      this.logger.log(`Node info fetched: ${Object.keys(nodeInfo)} nodes`);
+      // Step 1: Single API call to get parent component info
+      this.logger.log('Step 1: Getting parent component info...');
+      const parentNodeInfo = await this.getNodeInfo(figmaApi, fileId, componentIds);
+      this.logger.log(`Parent nodes fetched: ${Object.keys(parentNodeInfo).length} nodes`);
       
-      // Process nodes recursively - collect all IDs including children for large components
-      const allComponentIds = await this.processNodesRecursively(figmaApi, fileId, componentIds, nodeInfo);
-      this.logger.log(`Total component IDs after recursive processing: ${allComponentIds}`);
+      // Step 2: Traverse children to collect visible image IDs
+      this.logger.log('Step 2: Collecting visible image IDs...');
+      const validImageIds = this.collectVisibleImageIds(parentNodeInfo);
+      this.logger.log(`Valid image IDs collected: ${validImageIds.length} images`);
       
-      // Get image URLs for all collected IDs
-      const imageUrls = await this.getImageUrls(figmaApi, fileId, allComponentIds, format, scale);
-      this.logger.log(`Image URLs fetched: ${Object.keys(imageUrls).length} images`);
+      if (validImageIds.length === 0) {
+        this.logger.warn('No valid image IDs found');
+        return [];
+      }
+
+      // Step 3: Parallel execution - Get node info AND image URLs simultaneously
+      this.logger.log('Step 3: Parallel processing - node info and image URLs...');
+      const [allNodeInfo, imageUrls] = await Promise.all([
+        this.getNodeInfo(figmaApi, fileId, validImageIds),
+        this.getBatchedImageUrls(figmaApi, fileId, validImageIds, format, scale)
+      ]);
+      this.logger.log(`Parallel processing complete: ${Object.keys(imageUrls).length} images`);
       
-      // Get node info for all collected IDs (including children)
-      const allNodeInfo = await this.getNodeInfo(figmaApi, fileId, allComponentIds);
-      
-      // Combine node info with image URLs
+      // Step 5: Combine results
       const results: FigmaImageDto[] = [];
       
-      this.logger.log(`Processing ${allComponentIds.length} component IDs for final results`);
-      for (const componentId of allComponentIds) {
+      for (const componentId of validImageIds) {
         const imageUrl = imageUrls[componentId];
         const node = allNodeInfo[componentId];
 
@@ -165,11 +171,11 @@ export class FigmaService {
 
           results.push(result);
         } else {
-          this.logger.warn(`No image or info found for component: ${componentId}`);
+          this.logger.warn(`No image URL found for component: ${componentId}`);
         }
       }
 
-      this.logger.log(`Successfully fetched ${results.length} component images`);
+      this.logger.log(`Successfully processed ${results.length} component images`);
       return results;
 
     } catch (error) {
@@ -197,12 +203,11 @@ export class FigmaService {
   }
 
   private async getNodeInfo(figmaApi: AxiosInstance, fileId: string, componentIds: string[]): Promise<Record<string, FigmaNode>> {
+    // Optimize for speed - reduce retries for node info calls
     return this.retryWithBackoff(async () => {
       this.logger.log(`Fetching node info for ${componentIds.length} components`);
 
       const response = await figmaApi.get<FigmaNodesResponse>(`/files/${fileId}/nodes?ids=${componentIds.join(',')}`);
-
-      this.logger.log(`Node info response status: ${response.status}`);
       
       const nodes = response.data.nodes || {};
       
@@ -216,194 +221,165 @@ export class FigmaService {
         }
       }
 
-      this.logger.log(`Extracted ${Object.keys(requestedNodes).length} nodes with dimensions`);
+      this.logger.log(`Extracted ${Object.keys(requestedNodes).length} nodes`);
       return requestedNodes;
-    }, 3, `getNodeInfo for ${componentIds.length} components`);
+    }, 2, `getNodeInfo for ${componentIds.length} components`); // Reduced retries from 3 to 2
   }
 
   /**
-   * Filter visible instances from frame children
-   * Only returns direct children that are INSTANCE type and visible !== false
+   * Collect visible image IDs from parent nodes - SIMPLIFIED APPROACH
+   * Only collect components that are visible on Figma screen (not references)
    */
-  private filterVisibleInstances(frameNode: FigmaNode): string[] {
-    if (!frameNode.children || frameNode.children.length === 0) {
-      this.logger.log(`Frame ${frameNode.id} has no children`);
-      return [];
-    }
-
-    const visibleInstances = frameNode.children.filter(child => {
-      const isInstance = child.type === 'INSTANCE';
-      const isVisible = child.visible !== false; // undefined or true are considered visible
-      
-      this.logger.log(`Child ${child.id}: type=${child.type}, visible=${child.visible}, isInstance=${isInstance}, isVisible=${isVisible}`);
-      
-      return isInstance && isVisible;
-    });
-
-    this.logger.log(`Found ${visibleInstances.length} visible instances in frame ${frameNode.id}`);
+  private collectVisibleImageIds(parentNodeInfo: Record<string, FigmaNode>): string[] {
+    const validIds: string[] = [];
     
-    return visibleInstances.map(instance => instance.id);
-  }
-
-  private collectChildrenIds(node: FigmaNode): string[] {
-    const childrenIds: string[] = [];
-    
-    if (node.children && node.children.length > 0) {
-      for (const child of node.children) {
-        childrenIds.push(child.id);
-        // Recursively collect children of children
-        const grandChildrenIds = this.collectChildrenIds(child);
-        childrenIds.push(...grandChildrenIds);
+    for (const [parentId, parentNode] of Object.entries(parentNodeInfo)) {
+      this.logger.log(`Processing parent: ${parentId} (${parentNode.type})`);
+      
+      // Check if parent itself is suitable
+      if (this.isVisibleComponent(parentNode)) {
+        if (this.isLargeComponent(parentNode)) {
+          // Parent > 800x800px, get children instead
+          this.logger.log(`Parent ${parentId} is large, collecting children`);
+          const childIds = this.getVisibleChildren(parentNode);
+          validIds.push(...childIds);
+        } else {
+          // Parent is good size, use it
+          this.logger.log(`Adding parent ${parentId} directly`);
+          validIds.push(parentId);
+        }
+      } else {
+        // Parent not suitable, try children
+        this.logger.log(`Parent ${parentId} not suitable, trying children`);
+        const childIds = this.getVisibleChildren(parentNode);
+        validIds.push(...childIds);
       }
     }
     
-    return childrenIds;
+    // Remove duplicates
+    return [...new Set(validIds)];
   }
 
-  private shouldUseChildren(node: FigmaNode): boolean {
+  /**
+   * Check if node is visible and suitable for image extraction
+   */
+  private isVisibleComponent(node: FigmaNode): boolean {
+    // Must be visible (not hidden)
+    if (node.visible === false) {
+      return false;
+    }
+    
+    // Skip reference/definition components - only visible instances
+    if (node.type === 'COMPONENT_SET' || node.type === 'COMPONENT') {
+      return false;
+    }
+    
+    return true;
+  }
+
+  /**
+   * Check if component is large (> 500px in both dimensions)
+   */
+  private isLargeComponent(node: FigmaNode): boolean {
     if (!node.absoluteBoundingBox) {
       return false;
     }
     
     const { width, height } = node.absoluteBoundingBox;
-    return width > 500 || height > 500;
+    return width > 500 && height > 500;
   }
 
-  private async processNodesRecursively(
-    figmaApi: AxiosInstance,
-    fileId: string,
-    componentIds: string[],
-    initialNodeInfo: Record<string, FigmaNode>
-  ): Promise<string[]> {
-    const finalIds = new Set<string>();
-    const allNodeInfo = { ...initialNodeInfo };
+  /**
+   * Get visible children IDs from a parent node
+   */
+  private getVisibleChildren(parentNode: FigmaNode): string[] {
+    if (!parentNode.children || parentNode.children.length === 0) {
+      return [];
+    }
     
-    this.logger.log(`Starting recursive processing with ${componentIds.length} initial components`);
-
-    for (const componentId of componentIds) {
-      const node = allNodeInfo[componentId];
+    const visibleIds: string[] = [];
+    
+    for (const child of parentNode.children) {
+      // Skip hidden children
+      if (child.visible === false) {
+        continue;
+      }
       
-      if (node && node.children) {
-        if (node.type === 'FRAME') {
-          // FRAME: Process ALL children directly (no visible filter)
-          this.logger.log(`Processing FRAME ${componentId}, processing all children directly`);
-          
-          const childrenIds = node.children.map(child => child.id);
-          this.logger.log(`Found ${childrenIds.length} children in FRAME ${componentId}`);
-          
-          for (const childId of childrenIds) {
-            await this.processNodeRecursively(figmaApi, fileId, childId, allNodeInfo, finalIds);
-          }
-        } else if (node.type === 'INSTANCE') {
-          // INSTANCE: Filter for visible instances only
-          this.logger.log(`Processing INSTANCE ${componentId}, filtering for visible children`);
-          
-          const visibleInstanceIds = this.filterVisibleInstances(node);
-          this.logger.log(`Found ${visibleInstanceIds.length} visible children in INSTANCE ${componentId}`);
-          
-          for (const visibleId of visibleInstanceIds) {
-            await this.processNodeRecursively(figmaApi, fileId, visibleId, allNodeInfo, finalIds);
-          }
-        } else {
-          // Other types with children: process normally
-          await this.processNodeRecursively(figmaApi, fileId, componentId, allNodeInfo, finalIds);
-        }
+      // Skip reference/definition components
+      if (child.type === 'COMPONENT_SET' || child.type === 'COMPONENT') {
+        continue;
+      }
+      
+      if (this.isLargeComponent(child)) {
+        // Child is large, get its children
+        const grandChildIds = this.getVisibleChildren(child);
+        visibleIds.push(...grandChildIds);
       } else {
-        // For nodes without children, process normally
-        await this.processNodeRecursively(figmaApi, fileId, componentId, allNodeInfo, finalIds);
+        // Child is good size, add it
+        visibleIds.push(child.id);
       }
     }
-
-    const result = Array.from(finalIds);
-    this.logger.log(`Recursive processing complete: ${componentIds.length} initial -> ${result.length} final components`);
     
-    return result;
+    return visibleIds;
   }
 
-  private async processNodeRecursively(
+
+
+  /**
+   * Get image URLs with optimized batching for large numbers of components
+   */
+  private async getBatchedImageUrls(
     figmaApi: AxiosInstance,
     fileId: string,
-    nodeId: string,
-    allNodeInfo: Record<string, FigmaNode>,
-    finalIds: Set<string>
-  ): Promise<void> {
-    // Get node info if not already available
-    if (!allNodeInfo[nodeId]) {
-      const nodeInfo = await this.getNodeInfo(figmaApi, fileId, [nodeId]);
-      Object.assign(allNodeInfo, nodeInfo);
+    componentIds: string[], 
+    format: string, 
+    scale: string
+  ): Promise<Record<string, string>> {
+    const maxBatchSize = 100; // Increased batch size for better performance
+    const allImages: Record<string, string> = {};
+    
+    if (componentIds.length <= maxBatchSize) {
+      // Single batch, no need to split
+      return this.getImageUrls(figmaApi, fileId, componentIds, format, scale);
     }
+    
+    // Split into batches and process in parallel
+    const batches: string[][] = [];
+    for (let i = 0; i < componentIds.length; i += maxBatchSize) {
+      batches.push(componentIds.slice(i, i + maxBatchSize));
+    }
+    
+    this.logger.log(`Processing ${batches.length} batches in parallel (${componentIds.length} total images)`);
+    
+    // Process batches in parallel with controlled concurrency
+    const batchPromises = batches.map((batch, index) => 
+      this.processBatchWithDelay(figmaApi, fileId, batch, format, scale, index)
+    );
+    
+    const batchResults = await Promise.all(batchPromises);
+    
+    // Combine all results
+    batchResults.forEach(batchImages => {
+      Object.assign(allImages, batchImages);
+    });
+    
+    return allImages;
+  }
 
-    const node = allNodeInfo[nodeId];
-    if (!node) {
-      this.logger.warn(`Could not find node info for ${nodeId}`);
-      return;
+  private async processBatchWithDelay(
+    figmaApi: AxiosInstance,
+    fileId: string,
+    batch: string[],
+    format: string,
+    scale: string,
+    batchIndex: number
+  ): Promise<Record<string, string>> {
+    // Stagger batch processing to avoid overwhelming the API
+    if (batchIndex > 0) {
+      await new Promise(resolve => setTimeout(resolve, batchIndex * 50)); // 50ms stagger
     }
-
-    // Priority 1: Check size first - if small, keep it (avoid too many small icons)
-    if (this.shouldUseChildren(node)) {
-      this.logger.log(`Component ${nodeId} is large (${node.absoluteBoundingBox?.width}x${node.absoluteBoundingBox?.height}), processing children`);
-      
-      const childrenIds = this.collectChildrenIds(node);
-      this.logger.log(`Found ${childrenIds.length} children for component ${nodeId}`);
-      
-      if (childrenIds.length === 0) {
-        this.logger.log(`No children found for ${nodeId}, adding to final results anyway`);
-        finalIds.add(nodeId);
-        return;
-      }
-      
-      // Batch process children to avoid API overload
-      const batchSize = 10; // Process max 10 children at once
-      for (let i = 0; i < childrenIds.length; i += batchSize) {
-        const batch = childrenIds.slice(i, i + batchSize);
-        this.logger.log(`Processing children batch ${Math.floor(i/batchSize) + 1}/${Math.ceil(childrenIds.length/batchSize)} (${batch.length} items)`);
-        
-        // Fetch batch node info at once for efficiency
-        const missingIds = batch.filter(id => !allNodeInfo[id]);
-        if (missingIds.length > 0) {
-          const batchNodeInfo = await this.getNodeInfo(figmaApi, fileId, missingIds);
-          Object.assign(allNodeInfo, batchNodeInfo);
-        }
-        
-        // Process each child in batch recursively
-        for (const childId of batch) {
-          if (!finalIds.has(childId)) {
-            await this.processNodeRecursively(figmaApi, fileId, childId, allNodeInfo, finalIds);
-          }
-        }
-        
-        // Add small delay between batches to respect API rate limits
-        if (i + batchSize < childrenIds.length) {
-          await new Promise(resolve => setTimeout(resolve, 100)); // 100ms delay
-        }
-      }
-    } else {
-      // Priority 2: Size is small (≤500px) - check componentId
-      const hasComponentId = !!(node.componentId);
-      
-      if (!hasComponentId) {
-        this.logger.log(`Component ${nodeId} is small but has no componentId, processing children`);
-        
-        const childrenIds = this.collectChildrenIds(node);
-        this.logger.log(`Found ${childrenIds.length} children for component ${nodeId}`);
-        
-        if (childrenIds.length === 0) {
-          this.logger.log(`No children found for ${nodeId}, adding to final results anyway`);
-          finalIds.add(nodeId);
-          return;
-        }
-        
-        // Process children to find nodes with componentId
-        for (const childId of childrenIds) {
-          if (!finalIds.has(childId)) {
-            await this.processNodeRecursively(figmaApi, fileId, childId, allNodeInfo, finalIds);
-          }
-        }
-      } else {
-        this.logger.log(`Component ${nodeId} is small and has componentId, adding to final results`);
-        finalIds.add(nodeId);
-      }
-    }
+    
+    return this.getImageUrls(figmaApi, fileId, batch, format, scale);
   }
 
   private async getImageUrls(
@@ -413,6 +389,7 @@ export class FigmaService {
     format: string, 
     scale: string
   ): Promise<Record<string, string>> {
+    // Optimize for speed - fewer retries for image URL calls
     return this.retryWithBackoff(async () => {
       const idsParam = componentIds.join(',');
       
@@ -429,7 +406,7 @@ export class FigmaService {
       }
 
       return response.data.images || {};
-    }, 3, `getImageUrls for ${componentIds.length} components`);
+    }, 2, `getImageUrls for ${componentIds.length} components`); // Reduced retries from 3 to 2
   }
 
   async validateFigmaAccess(accessToken: string, fileId: string): Promise<boolean> {

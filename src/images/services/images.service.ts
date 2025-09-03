@@ -16,22 +16,30 @@ export class ImagesService {
     try {
       this.logger.log('Starting image extraction process');
 
-      // 1. Get component IDs from Google Sheets
-      const componentIds = await this.googleSheetsService.getComponentIds(
-        query.googleSheetId,
-        query.sheetRange
-      );
+      let componentIds: string[];
 
-      if (componentIds.length === 0) {
-        return {
-          success: true,
-          data: [],
-          message: 'No component IDs found in the specified sheet range',
-          totalCount: 0,
-        };
+      // 1. Check if specificNodeId is provided, otherwise get from Google Sheets
+      if (query.specificNodeId && query.specificNodeId.length > 0) {
+        componentIds = query.specificNodeId;
+        this.logger.log(`Using specific node IDs: ${componentIds.length} component IDs provided`);
+      } else {
+        // Get component IDs from Google Sheets
+        componentIds = await this.googleSheetsService.getComponentIds(
+          query.googleSheetId,
+          query.sheetRange
+        );
+
+        if (componentIds.length === 0) {
+          return {
+            success: true,
+            data: [],
+            message: 'No component IDs found in the specified sheet range',
+            totalCount: 0,
+          };
+        }
+
+        this.logger.log(`Found ${componentIds.length} component IDs from Google Sheets`);
       }
-
-      this.logger.log(`Found ${componentIds.length} component IDs from Google Sheets`);
 
       // 2. Get images from Figma
       const images = await this.figmaService.getComponentImages(
@@ -44,10 +52,11 @@ export class ImagesService {
 
       this.logger.log(`Successfully processed ${images.length} images`);
 
+      const source = query.specificNodeId ? 'specific node IDs' : 'Google Sheets';
       return {
         success: true,
         data: images,
-        message: `Successfully fetched ${images.length} images`,
+        message: `Successfully fetched ${images.length} images from ${source}`,
         totalCount: images.length,
       };
 
