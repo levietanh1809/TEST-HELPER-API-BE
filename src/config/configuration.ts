@@ -7,4 +7,9 @@ export default () => ({
       privateKey: process.env.GOOGLE_PRIVATE_KEY,
     },
   },
+  openai: {
+    apiKey: process.env.OPENAI_API_KEY,
+    model: process.env.OPENAI_MODEL || 'gpt-4o',
+    maxTokens: process.env.OPENAI_MAX_TOKENS || 4000,
+  },
 });

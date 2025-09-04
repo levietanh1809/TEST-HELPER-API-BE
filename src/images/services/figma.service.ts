@@ -111,7 +111,9 @@ export class FigmaService {
     fileId: string,
     componentIds: string[], 
     format: string = 'png', 
-    scale: string = '2'
+    scale: string = '2',
+    minWidth: number = 500,
+    minHeight: number = 500
   ): Promise<FigmaImageDto[]> {
     try {
       if (!fileId) {
@@ -134,7 +136,7 @@ export class FigmaService {
       
       // Step 2: Traverse children to collect visible image IDs
       this.logger.log('Step 2: Collecting visible image IDs...');
-      const validImageIds = this.collectVisibleImageIds(parentNodeInfo);
+      const validImageIds = this.collectVisibleImageIds(parentNodeInfo, minWidth, minHeight);
       this.logger.log(`Valid image IDs collected: ${validImageIds.length} images`);
       
       if (validImageIds.length === 0) {
@@ -142,20 +144,25 @@ export class FigmaService {
         return [];
       }
 
-      // Step 3: Parallel execution - Get node info AND image URLs simultaneously
-      this.logger.log('Step 3: Parallel processing - node info and image URLs...');
-      const [allNodeInfo, imageUrls] = await Promise.all([
-        this.getNodeInfo(figmaApi, fileId, validImageIds),
-        this.getBatchedImageUrls(figmaApi, fileId, validImageIds, format, scale)
-      ]);
-      this.logger.log(`Parallel processing complete: ${Object.keys(imageUrls).length} images`);
+      // Step 3: Get complete node info for valid IDs (some may be children not in original response)
+      this.logger.log('Step 3: Getting complete node info for valid IDs...');
+      this.logger.log(`🔍 DEBUG: Requesting node info for IDs: ${JSON.stringify(validImageIds)}`);
+      const allValidNodeInfo = await this.getNodeInfo(figmaApi, fileId, validImageIds);
+      this.logger.log(`🔍 DEBUG: Received node info keys: ${JSON.stringify(Object.keys(allValidNodeInfo))}`);
       
-      // Step 5: Combine results
+      // Step 4: Get image URLs for valid components
+      this.logger.log('Step 4: Getting image URLs...');
+      const imageUrls = await this.getBatchedImageUrls(figmaApi, fileId, validImageIds, format, scale);
+      this.logger.log(`Image URLs fetched: ${Object.keys(imageUrls).length} images`);
+      
+      // Step 5: Combine results with complete Figma response
       const results: FigmaImageDto[] = [];
       
       for (const componentId of validImageIds) {
         const imageUrl = imageUrls[componentId];
-        const node = allNodeInfo[componentId];
+        const figmaResponse = allValidNodeInfo[componentId]; // Use complete node info instead
+
+        this.logger.log(`Processing component ${componentId}: hasImageUrl=${!!imageUrl}, hasFigmaResponse=${!!figmaResponse}`);
 
         if (imageUrl) {
           const result: FigmaImageDto = {
@@ -163,10 +170,19 @@ export class FigmaService {
             imageUrl,
           };
 
-          // Add dimensions if available
-          if (node?.absoluteBoundingBox) {
-            result.width = node.absoluteBoundingBox.width;
-            result.height = node.absoluteBoundingBox.height;
+          // Add dimensions if available from raw response
+          if (figmaResponse?.absoluteBoundingBox) {
+            result.width = figmaResponse.absoluteBoundingBox.width;
+            result.height = figmaResponse.absoluteBoundingBox.height;
+          }
+
+          // Add complete raw Figma response as-is
+          if (figmaResponse) {
+            result.figmaResponse = figmaResponse;
+            this.logger.log(`✅ Added figmaResponse for ${componentId}, type: ${figmaResponse.type}, keys: ${Object.keys(figmaResponse).length}`);
+          } else {
+            this.logger.error(`❌ CRITICAL: No figmaResponse found for component: ${componentId}`);
+            this.logger.error(`❌ Available keys in allValidNodeInfo: ${Object.keys(allValidNodeInfo)}`);
           }
 
           results.push(result);
@@ -230,7 +246,7 @@ export class FigmaService {
    * Collect visible image IDs from parent nodes - SIMPLIFIED APPROACH
    * Only collect components that are visible on Figma screen (not references)
    */
-  private collectVisibleImageIds(parentNodeInfo: Record<string, FigmaNode>): string[] {
+  private collectVisibleImageIds(parentNodeInfo: Record<string, FigmaNode>, minWidth: number, minHeight: number): string[] {
     const validIds: string[] = [];
     
     for (const [parentId, parentNode] of Object.entries(parentNodeInfo)) {
@@ -238,10 +254,10 @@ export class FigmaService {
       
       // Check if parent itself is suitable
       if (this.isVisibleComponent(parentNode)) {
-        if (this.isLargeComponent(parentNode)) {
-          // Parent > 800x800px, get children instead
+        if (this.isLargeComponent(parentNode, minWidth, minHeight)) {
+          // Parent > 500x500px, get children instead
           this.logger.log(`Parent ${parentId} is large, collecting children`);
-          const childIds = this.getVisibleChildren(parentNode);
+          const childIds = this.getVisibleChildren(parentNode, minWidth, minHeight);
           validIds.push(...childIds);
         } else {
           // Parent is good size, use it
@@ -251,7 +267,7 @@ export class FigmaService {
       } else {
         // Parent not suitable, try children
         this.logger.log(`Parent ${parentId} not suitable, trying children`);
-        const childIds = this.getVisibleChildren(parentNode);
+        const childIds = this.getVisibleChildren(parentNode, minWidth, minHeight);
         validIds.push(...childIds);
       }
     }
@@ -259,6 +275,7 @@ export class FigmaService {
     // Remove duplicates
     return [...new Set(validIds)];
   }
+
 
   /**
    * Check if node is visible and suitable for image extraction
@@ -280,19 +297,19 @@ export class FigmaService {
   /**
    * Check if component is large (> 500px in both dimensions)
    */
-  private isLargeComponent(node: FigmaNode): boolean {
+  private isLargeComponent(node: FigmaNode, minWidth: number, minHeight: number): boolean {
     if (!node.absoluteBoundingBox) {
       return false;
     }
     
     const { width, height } = node.absoluteBoundingBox;
-    return width > 500 && height > 500;
+    return width > minWidth && height > minHeight;
   }
 
   /**
    * Get visible children IDs from a parent node
    */
-  private getVisibleChildren(parentNode: FigmaNode): string[] {
+  private getVisibleChildren(parentNode: FigmaNode, minWidth: number, minHeight: number): string[] {
     if (!parentNode.children || parentNode.children.length === 0) {
       return [];
     }
@@ -310,9 +327,9 @@ export class FigmaService {
         continue;
       }
       
-      if (this.isLargeComponent(child)) {
+      if (this.isLargeComponent(child, minWidth, minHeight)) {
         // Child is large, get its children
-        const grandChildIds = this.getVisibleChildren(child);
+        const grandChildIds = this.getVisibleChildren(child, minWidth, minHeight);
         visibleIds.push(...grandChildIds);
       } else {
         // Child is good size, add it
@@ -322,6 +339,7 @@ export class FigmaService {
     
     return visibleIds;
   }
+
 
 
 

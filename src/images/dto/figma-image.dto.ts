@@ -1,4 +1,4 @@
-import { IsString, IsNotEmpty, IsOptional, IsUrl, IsArray } from 'class-validator';
+import { IsString, IsNotEmpty, IsOptional, IsUrl, IsArray, IsObject, IsNumber } from 'class-validator';
 
 export class FigmaImageDto {
   @IsString()
@@ -14,6 +14,10 @@ export class FigmaImageDto {
 
   @IsOptional()
   height?: number;
+
+  @IsOptional()
+  @IsObject()
+  figmaResponse?: any; // Raw Figma API response as-is
 }
 
 export class GetImagesQueryDto {
@@ -44,6 +48,15 @@ export class GetImagesQueryDto {
   @IsOptional()
   @IsString()
   scale?: '1' | '2' | '4';
+
+  // Optional size thresholds (default 500 if not provided)
+  @IsOptional()
+  @IsNumber()
+  minWidth?: number;
+
+  @IsOptional()
+  @IsNumber()
+  minHeight?: number;
 }
 
 export class GetImagesByIdsDto {
@@ -66,6 +79,15 @@ export class GetImagesByIdsDto {
   @IsOptional()
   @IsString()
   scale?: '1' | '2' | '4';
+
+  // Optional size thresholds (default 500 if not provided)
+  @IsOptional()
+  @IsNumber()
+  minWidth?: number;
+
+  @IsOptional()
+  @IsNumber()
+  minHeight?: number;
 }
 
 export class GetImagesResponseDto {

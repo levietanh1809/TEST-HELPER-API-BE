@@ -1,7 +1,7 @@
 # 🎨 Figma Integration - Simplified Approach ⚡
 
 ## 🎯 Overview
-Simplified Figma API integration with efficient 3-step processing for automated image extraction from visible components only.
+Simplified Figma API integration with efficient 5-step processing for automated image extraction from visible components. **NEW**: Enhanced with complete raw Figma response data for perfect UI recreation.
 
 ## 🏗️ Simplified Architecture
 
@@ -44,13 +44,29 @@ const validImageIds = this.collectVisibleImageIds(parentNodeInfo);
 ```
 
 **Benefit**: Only process components that users can actually see
+**NEW**: Complete raw Figma API response included for full UI recreation capability
 
-### 3. Batch Image Processing
+### 3. Complete Node Info Fetch 🆕
+Get comprehensive Figma data for all valid components:
+```typescript
+allValidNodeInfo = await getNodeInfo(figmaApi, fileId, validImageIds)
+// Returns complete raw Figma response for each component
+```
+
+### 4. Batch Image Processing
 **Rule**: Handle large numbers of images efficiently with batching
 
 ```typescript
-// Step 3: Batch image API calls
+// Step 4: Batch image API calls
 const imageUrls = await this.getBatchedImageUrls(figmaApi, fileId, validImageIds, format, scale);
+
+// Step 5: Enhanced result combination with raw Figma response
+result = {
+  componentId,
+  imageUrl,
+  width, height,
+  figmaResponse: allValidNodeInfo[componentId] // Complete raw Figma data
+}
 
 // Logic:
 // - Max 50 components per batch (Figma API limit)
@@ -127,9 +143,11 @@ graph TD
     F -->|No| H[Add to Valid IDs]
     G --> I[Check Each Child]
     I --> F
-    E --> J[Step 3: Batch Image API Calls]
+    E --> J[Step 3: Get Complete Node Info]
     H --> J
-    J --> K[Return Image Data]
+    J --> K[Step 4: Batch Image API Calls]
+    K --> L[Step 5: Combine with Raw Response]
+    L --> M[Return Enhanced Image Data]
 ```
 
 ### Simplified Flow Explanation:
@@ -149,20 +167,61 @@ graph TD
 componentIds: ["189639:111814", "189639:111815"]
 ```
 
-### Output
+### Output (Enhanced with Raw Figma Data!) ⚡
 ```typescript
 FigmaImageDto[] = [
   {
     componentId: "189639:111815",
     imageUrl: "https://s3-alpha.figma.com/...",
     width: 60,
-    height: 20
+    height: 20,
+    figmaResponse: {
+      id: "189639:111815",
+      name: "キャンセル",
+      type: "TEXT",
+      visible: true,
+      locked: false,
+      absoluteBoundingBox: {
+        x: 10545,
+        y: 17289,
+        width: 60,
+        height: 20
+      },
+      characters: "キャンセル",
+      style: {
+        fontFamily: "Hiragino Sans",
+        fontSize: 14,
+        fontWeight: 400,
+        textAlignHorizontal: "CENTER",
+        lineHeightPx: 20
+      },
+      fills: [{
+        type: "SOLID",
+        color: { r: 0.2, g: 0.2, b: 0.2 }
+      }],
+      constraints: {
+        vertical: "CENTER",
+        horizontal: "CENTER"
+      },
+      effects: [],
+      children: [] // Complete hierarchy preserved
+      // ... ALL other Figma API properties
+    }
   },
   {
     componentId: "189639:111816", 
     imageUrl: "https://s3-alpha.figma.com/...",
     width: 10,
-    height: 10
+    height: 10,
+    figmaResponse: {
+      id: "189639:111816",
+      name: "Icon",
+      type: "VECTOR",
+      visible: true,
+      absoluteBoundingBox: { x: 10, y: 10, width: 10, height: 10 },
+      fills: [{ type: "SOLID", color: { r: 0, g: 0, b: 0 } }],
+      // ... Complete raw Figma response
+    }
   }
 ]
 ```

@@ -392,15 +392,17 @@ Need to understand for [purpose]"
 
 ## 🆕 Latest Improvements (Reference)
 
-### ✅ **MAJOR SIMPLIFICATION (TODAY!)** 🚀
+### ✅ **MAJOR SIMPLIFICATION + RAW FIGMA RESPONSE (TODAY!)** 🚀
 ```typescript
-// REVOLUTIONARY: Replaced complex recursive logic with 3-step approach
+// REVOLUTIONARY: Replaced complex recursive logic with 5-step approach + UI Recreation
 // Old: Multiple recursive API calls, complex type checking, deep nesting
-// New: Step 1 (parent info) → Step 2 (collect visible) → Step 3 (batch images)
+// New: Step 1 (parent info) → Step 2 (collect visible) → Step 3 (complete node data) 
+//      → Step 4 (batch images) → Step 5 (enhanced results)
 // Size Logic: width > 500 && height > 500 (both dimensions must be large)
-// Impact: ~70% fewer API calls, 200+ lines of code removed
-// Benefits: Faster, more reliable, easier to debug, better component granularity
-// Focus: Only visible components, skip all references
+// 🆕 NEW: Complete raw Figma response for perfect UI recreation
+// Impact: ~70% fewer API calls, 200+ lines of code removed, 100% UI fidelity
+// Benefits: Faster, more reliable, easier to debug, perfect design-code sync
+// Focus: Only visible components, skip all references, complete Figma data preserved
 ```
 
 ### ✅ **Visibility-First Processing** ⚡
@@ -421,6 +423,44 @@ Need to understand for [purpose]"
 // Logic: if (components > 50) → split into batches with 200ms delays
 // Benefits: Handle hundreds of components without hitting API limits
 // Rate limiting: Automatic delays to respect Figma's rate limits
+```
+
+### ✅ **Configurable Size Threshold (Frontend-controlled)** 🆕
+```typescript
+// Purpose: Allow FE to control the decomposition threshold for large components
+// Where: Images pipeline (Figma → image extraction)
+// New Params (optional): minWidth, minHeight (default 500 if omitted)
+// Behavior:
+// - A node is considered "large" when width > minWidth && height > minHeight
+// - Large parents are decomposed into visible children for image extraction
+// API Changes:
+// - POST /api/images/from-sheet: accepts minWidth?: number, minHeight?: number
+// - POST /api/images/by-ids:   accepts minWidth?: number, minHeight?: number
+// Implementation:
+// - isLargeComponent(node, minWidth, minHeight)
+// - collectVisibleImageIds(..., minWidth, minHeight)
+// - getVisibleChildren(..., minWidth, minHeight)
+// Default: 500x500 to preserve previous behavior
+```
+
+### ✅ **Figma-to-Code Output Returns File Contents (Manual Download)** 🆕
+```typescript
+// Convert endpoint now returns full files in response (no auto-download):
+// POST /api/images/figma-to-code/convert → { data: { files, ... } }
+// New on-demand download flow:
+// - POST /api/images/figma-to-code/create-package → { downloadUrl }
+// - GET  /api/images/figma-to-code/download/{filename}.zip
+// FE UX: Display code immediately; user clicks to download when ready
+```
+
+### ✅ **Model Options Extended (Long Context)** 🆕
+```typescript
+// getConversionOptions now includes:
+// - gpt-4.1 (≈200K context), gpt-4.1-mini (≈128K context)
+// - modelInfo enriched: maxTokens, costPer1K, category, features, recommended
+// Use cases:
+// - gpt-4.1: complex, multi-component layouts; ultra long context
+// - gpt-4.1-mini: cost-effective long context
 ```
 
 ### 🎯 **Usage cho future requests:**

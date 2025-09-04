@@ -1,0 +1,24 @@
+# Environment Variables for Test Helper API
+
+# Server Configuration
+PORT=3000
+
+# Google Sheets Integration
+GOOGLE_SERVICE_ACCOUNT_EMAIL=your-service-account@project.iam.gserviceaccount.com
+GOOGLE_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----\nYour private key content here\n-----END PRIVATE KEY-----"
+GOOGLE_SHEET_RANGE=Sheet1!A:A
+
+# OpenAI Configuration (NEW)
+OPENAI_API_KEY=sk-your-openai-api-key-here
+OPENAI_MODEL=gpt-4o
+OPENAI_MAX_TOKENS=4000
+
+# Figma Integration (for reference)
+# FIGMA_ACCESS_TOKEN=your-figma-token (passed via API request)
+# FIGMA_FILE_ID=your-file-id (passed via API request)
+
+# Instructions:
+# 1. Copy this file to .env
+# 2. Replace placeholder values with your actual credentials
+# 3. Get OpenAI API key from: https://platform.openai.com/api-keys
+# 4. Ensure .env is in .gitignore (security)

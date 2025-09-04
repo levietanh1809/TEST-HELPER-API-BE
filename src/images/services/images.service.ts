@@ -48,6 +48,8 @@ export class ImagesService {
         componentIds,
         query.format || 'png',
         query.scale || '2',
+        query.minWidth ?? 500,
+        query.minHeight ?? 500,
       );
 
       this.logger.log(`Successfully processed ${images.length} images`);
@@ -91,7 +93,9 @@ export class ImagesService {
         fileId,
         componentIds,
         format,
-        scale
+        scale,
+        500,
+        500
       );
 
       return {
