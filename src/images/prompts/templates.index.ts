@@ -46,7 +46,7 @@ export const TEMPLATE_CATEGORIES: TemplateCategory[] = [
   {
     name: 'testing',
     description: 'Templates for generating test cases and test documentation',
-    templates: ['unit-tests', 'integration-tests', 'e2e-tests']
+    templates: ['test-case-generation', 'unit-tests', 'integration-tests', 'e2e-tests']
   },
   {
     name: 'refactoring',
@@ -57,7 +57,8 @@ export const TEMPLATE_CATEGORIES: TemplateCategory[] = [
 
 // Template registry - currently implemented
 export const AVAILABLE_TEMPLATES = [
-  'figma-to-code'
+  'figma-to-code',
+  'test-case-generation'
   // Future templates will be added here
 ];
 
@@ -84,6 +85,17 @@ export function getTemplateMetadata(templateName: string): PromptTemplate | null
         systemPrompt: '', // Loaded from template file
         userPrompt: '', // Loaded from template file
         supportedOptions: ['framework', 'cssFramework', 'includeResponsive', 'includeInteractions'],
+        lastUpdated: '2024-12-19'
+      };
+    case 'test-case-generation':
+      return {
+        name: 'test-case-generation',
+        version: '1.0',
+        description: 'Generate comprehensive test cases from SRS with optional UI testing',
+        category: 'testing',
+        systemPrompt: '', // Loaded from template file
+        userPrompt: '', // Loaded from template file
+        supportedOptions: ['includeUITests', 'testingFramework', 'projectName', 'additionalRequirements'],
         lastUpdated: '2024-12-19'
       };
     default:

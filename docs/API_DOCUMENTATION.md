@@ -2,6 +2,80 @@
 
 ## 🌐 API Endpoints Overview
 
+### AI-Powered Development APIs
+
+---
+
+## 🧪 Test Case Generation API
+
+### 1. Generate Test Cases from SRS
+**Endpoint**: `POST /api/images/test-case-generation/generate`
+
+**Description**: Generates comprehensive test cases from Software Requirements Specification with optional UI testing using Figma components.
+
+**Request Body**:
+```typescript
+{
+  srsDescription?: string,             // Optional: SRS description to analyze
+  includeUITests?: boolean,            // Optional: Generate UI test cases (default: false)
+  figmaResponse?: any,                 // Required if includeUITests is true
+  projectName?: string,                // Optional: Project context
+  testingFramework?: 'manual'|'cypress'|'playwright'|'jest'|'testing_library'|'vitest'|'selenium',
+  model?: 'gpt-4o'|'gpt-4o-mini'|'gpt-4.1'|'gpt-4.1-mini'|'gpt-4-turbo'|'gpt-4'|'gpt-3.5-turbo',
+  language?: string,                   // Optional: Output language (e.g., 'en'|'vi'|'ja')
+  additionalRequirements?: string      // Optional: Custom requirements
+}
+```
+
+**Response**:
+```typescript
+{
+  success: boolean,
+  data?: {
+    testCases: TestCase[],             // Array of generated test cases
+    summary: TestSummary,              // Statistical summary
+    projectName?: string,              // Project name used
+    generatedAt: string,               // Generation timestamp
+    model: string                      // AI model used
+  },
+  message?: string,
+  processingTime?: number,
+  openaiUsage?: {
+    promptTokens: number,
+    completionTokens: number,
+    totalTokens: number,
+    cost: number                       // USD cost
+  }
+}
+```
+
+### 2. Get Test Generation Options
+**Endpoint**: `GET /api/images/test-case-generation/options`
+
+**Response**:
+```typescript
+{
+  success: boolean,
+  data: {
+    models: string[],                  // Available AI models
+    testingFrameworks: string[],       // Supported testing frameworks
+    categories: string[],              // Test case categories
+    priorities: string[],              // Priority levels
+    types: string[],                   // Test case types
+    defaultOptions: object,            // Default configuration
+    modelInfo: object[]                // Detailed model information
+  }
+}
+```
+
+### 3. Get Test Generation Statistics
+**Endpoint**: `GET /api/images/test-case-generation/stats`
+
+### 4. Test Generation Health Check
+**Endpoint**: `GET /api/images/test-case-generation/health`
+
+---
+
 ### Image Processing APIs
 
 ---

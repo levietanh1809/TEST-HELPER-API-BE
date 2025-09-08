@@ -1,5 +1,12 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { CodeFramework, CSSFramework } from '../dto/figma-to-code.dto';
+import { TestingFramework } from '../dto/test-case-generation.dto';
+import { 
+  TEST_CASE_GENERATION_TEMPLATE,
+  UI_TESTING_INSTRUCTIONS,
+  NO_UI_TESTING_INSTRUCTIONS,
+  FRAMEWORK_INSTRUCTIONS
+} from '../prompts/test-case-generation.template';
 
 export interface PromptOptions {
   framework: CodeFramework;
@@ -8,6 +15,16 @@ export interface PromptOptions {
   includeResponsive?: boolean;
   includeInteractions?: boolean;
   additionalRequirements?: string;
+}
+
+export interface TestCasePromptOptions {
+  srsDescription?: string;
+  includeUITests?: boolean;
+  figmaResponse?: any;
+  projectName?: string;
+  testingFramework?: TestingFramework;
+  additionalRequirements?: string;
+  language?: string;
 }
 
 export interface PromptTemplate {
@@ -40,6 +57,97 @@ export class PromptService {
       system: systemPrompt,
       user: userPrompt
     };
+  }
+
+  /**
+   * Get optimized prompt for Test Case Generation
+   */
+  getTestCaseGenerationPrompt(
+    options: TestCasePromptOptions
+  ): { system: string; user: string } {
+    const template = this.getTestCaseGenerationTemplate();
+    
+    const systemPrompt = this.buildTestCaseSystemPrompt(template.system, options);
+    const userPrompt = this.buildTestCaseUserPrompt(template.user, options);
+
+    this.logger.log(`Generated test case prompt for project: ${options.projectName || 'Unknown'}`);
+    
+    return {
+      system: systemPrompt,
+      user: userPrompt
+    };
+  }
+
+  /**
+   * Get test case generation template
+   */
+  private getTestCaseGenerationTemplate(): PromptTemplate {
+    return {
+      system: TEST_CASE_GENERATION_TEMPLATE.system,
+      user: TEST_CASE_GENERATION_TEMPLATE.user,
+      description: TEST_CASE_GENERATION_TEMPLATE.metadata.description,
+      version: TEST_CASE_GENERATION_TEMPLATE.metadata.version,
+      category: TEST_CASE_GENERATION_TEMPLATE.metadata.category
+    };
+  }
+
+  /**
+   * Build system prompt for test case generation
+   */
+  private buildTestCaseSystemPrompt(template: string, options: TestCasePromptOptions): string {
+    let prompt = template.replace('{{LANGUAGE}}', options.language || 'English');
+
+    // Add UI testing instructions
+    if (options.includeUITests && options.figmaResponse) {
+      prompt = prompt.replace('{{UI_TESTING_INSTRUCTIONS}}', UI_TESTING_INSTRUCTIONS);
+    } else {
+      prompt = prompt.replace('{{UI_TESTING_INSTRUCTIONS}}', NO_UI_TESTING_INSTRUCTIONS);
+    }
+
+    // Add testing framework instructions
+    const frameworkKey = (options.testingFramework || TestingFramework.MANUAL) as keyof typeof FRAMEWORK_INSTRUCTIONS;
+    prompt = prompt.replace(
+      '{{TESTING_FRAMEWORK_INSTRUCTIONS}}',
+      FRAMEWORK_INSTRUCTIONS[frameworkKey] || FRAMEWORK_INSTRUCTIONS.manual
+    );
+
+    return prompt;
+  }
+
+  /**
+   * Build user prompt for test case generation
+   */
+  private buildTestCaseUserPrompt(template: string, options: TestCasePromptOptions): string {
+    let prompt = template
+      .replace('{{LANGUAGE}}', options.language || 'Vietnamese')
+      .replace('{{SRS_DESCRIPTION}}', options.srsDescription || 'No specific SRS description provided')
+      .replace('{{PROJECT_NAME}}', options.projectName || 'Unknown Project')
+      .replace('{{TESTING_FRAMEWORK}}', options.testingFramework || TestingFramework.MANUAL)
+      .replace('{{INCLUDE_UI_TESTS}}', options.includeUITests ? 'Yes' : 'No')
+      .replace('{{ADDITIONAL_REQUIREMENTS}}', options.additionalRequirements || 'None');
+
+    // Send raw Figma JSON only when UI tests are enabled, otherwise remove section
+    if (options.includeUITests && options.figmaResponse) {
+      const rawJson = JSON.stringify(options.figmaResponse, null, 2);
+      prompt = prompt.replace('{{FIGMA_JSON}}', rawJson);
+    } else {
+      prompt = prompt.replace('{{FIGMA_JSON}}', '');
+    }
+
+    // Handle conditional SRS description section (safe line replacements)
+    const presentLine = 'The above SRS description provides the requirements context for test case generation.';
+    const absentLine = 'No specific SRS description provided. Please generate general test cases based on the context and any UI components provided.';
+    // Remove template control markers regardless
+    prompt = prompt.replace('{{#if SRS_DESCRIPTION}}', '').replace('{{else}}', '').replace('{{/if}}', '');
+    if (!options.srsDescription || options.srsDescription.trim().length === 0) {
+      // Remove the present-line if SRS is absent
+      prompt = prompt.replace(presentLine, '');
+    } else {
+      // Remove the absent-line if SRS is present
+      prompt = prompt.replace(absentLine, '');
+    }
+
+    return prompt;
   }
 
   /**
@@ -349,10 +457,10 @@ Generate the complete implementation now:`,
   getAvailableTemplates(): { [key: string]: PromptTemplate } {
     return {
       'figma-to-code': this.getFigmaToCodeTemplate(),
+      'test-case-generation': this.getTestCaseGenerationTemplate(),
       // Future templates can be added here:
       // 'code-review': this.getCodeReviewTemplate(),
       // 'documentation': this.getDocumentationTemplate(),
-      // 'testing': this.getTestingTemplate(),
       // 'optimization': this.getOptimizationTemplate()
     };
   }

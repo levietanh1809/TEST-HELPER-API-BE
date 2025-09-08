@@ -414,38 +414,38 @@ Respond ONLY with valid JSON as specified in the prompt.`;
     switch (model) {
       // GPT-4o Series (Latest & Best)
       case OpenAIModel.GPT_4O:
-        return 4096; // Latest model with highest quality
+        return 32768; // Updated to OpenAI's maximum token limit
       case OpenAIModel.GPT_4O_MINI:
-        return 16384; // Cost-effective with large context
+        return 16000; // Updated to OpenAI's maximum token limit
       case OpenAIModel.GPT_4O_REALTIME_PREVIEW:
-        return 4096; // Realtime preview version
+        return 200000; // Updated to OpenAI's maximum token limit
       
       // GPT-4.1 Series (Long Context) - NEW!
       case OpenAIModel.GPT_4_1:
-        return 200000; // Ultra long context window
+        return 32768; // Updated to OpenAI's maximum token limit
       case OpenAIModel.GPT_4_1_MINI:
-        return 128000; // Long context, cost-effective
+        return 32768; // Updated to OpenAI's maximum token limit
       
       // GPT-4 Series
       case OpenAIModel.GPT_4_TURBO:
-        return 4096; // High quality for complex conversions
+        return 32768; // Updated to OpenAI's maximum token limit
       case OpenAIModel.GPT_4_TURBO_PREVIEW:
-        return 4096; // Preview version of turbo
+        return 32768; // Updated to OpenAI's maximum token limit
       case OpenAIModel.GPT_4:
-        return 8192; // Standard GPT-4 with good context
+        return 32768; // Updated to OpenAI's maximum token limit
       case OpenAIModel.GPT_4_32K:
-        return 32768; // Largest context window
+        return 32768; // Updated to OpenAI's maximum token limit
       case OpenAIModel.GPT_4_VISION_PREVIEW:
-        return 4096; // Vision-capable model
+        return 32768; // Updated to OpenAI's maximum token limit
         
       // GPT-3.5 Series
       case OpenAIModel.GPT_3_5_TURBO:
-        return 4096; // Fast and cost-effective
+        return 32768; // Updated to OpenAI's maximum token limit
       case OpenAIModel.GPT_3_5_TURBO_16K:
-        return 16384; // Extended context version
+        return 32768; // Updated to OpenAI's maximum token limit
         
       default:
-        return 4000; // Safe default
+        return 32768; // Updated to OpenAI's maximum token limit
     }
   }
 
@@ -503,5 +503,93 @@ Respond ONLY with valid JSON as specified in the prompt.`;
     const outputCost = (usage.completionTokens / 1000) * costs.output;
     
     return Number((inputCost + outputCost).toFixed(6));
+  }
+
+  /**
+   * Generate test cases from SRS description using OpenAI
+   */
+  async generateTestCases(
+    systemPrompt: string,
+    userPrompt: string,
+    model: OpenAIModel = OpenAIModel.GPT_4O_MINI
+  ): Promise<{
+    content: string;
+    usage: {
+      promptTokens: number;
+      completionTokens: number;
+      totalTokens: number;
+    };
+    modelUsed: OpenAIModel;
+  }> {
+    try {
+      this.logger.log(`Starting test case generation with model: ${model}`);
+
+      // Validate model
+      this.validateModel(model);
+
+      // Prepare OpenAI request
+      const maxTokens = Math.min(5000, this.getMaxTokensForModel(model));
+      
+      const response = await this.openai.chat.completions.create({
+        model: model,
+        messages: [
+          {
+            role: 'system',
+            content: systemPrompt
+          },
+          {
+            role: 'user',
+            content: userPrompt
+          }
+        ],
+        max_tokens: maxTokens,
+        temperature: 0.3,
+        top_p: 0.9,
+        frequency_penalty: 0.1,
+        presence_penalty: 0.1,
+        response_format: { type: 'json_object' }
+      });
+
+      // Extract response data
+      const content = response.choices[0]?.message?.content;
+      const usage = response.usage;
+
+      if (!content) {
+        throw new Error('No content received from OpenAI');
+      }
+
+      if (!usage) {
+        throw new Error('No usage information received from OpenAI');
+      }
+
+      this.logger.log(`Test case generation completed. Tokens used: ${usage.total_tokens}`);
+
+      return {
+        content,
+        usage: {
+          promptTokens: usage.prompt_tokens,
+          completionTokens: usage.completion_tokens,
+          totalTokens: usage.total_tokens
+        },
+        modelUsed: model
+      };
+
+    } catch (error) {
+      this.logger.error('Error generating test cases with OpenAI', error);
+      
+      if (error.response?.status === 429) {
+        throw new BadRequestException('OpenAI API rate limit exceeded. Please try again later.');
+      }
+      
+      if (error.response?.status === 401) {
+        throw new BadRequestException('OpenAI API authentication failed. Please check API key.');
+      }
+      
+      if (error.response?.status === 400) {
+        throw new BadRequestException(`OpenAI API request error: ${error.response?.data?.error?.message || 'Invalid request'}`);
+      }
+      
+      throw new BadRequestException(`Test case generation failed: ${error.message}`);
+    }
   }
 }
