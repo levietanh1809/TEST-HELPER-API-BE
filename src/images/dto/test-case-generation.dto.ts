@@ -35,7 +35,7 @@ export class TestCaseGenerationRequestDto {
    */
   @IsString()
   @IsOptional()
-  model?: OpenAIModel = OpenAIModel.GPT_4O_MINI;
+  model?: OpenAIModel = OpenAIModel.GPT_5_MINI;
 
   /**
    * Project name or context for better test case naming

@@ -60,7 +60,7 @@ export class TestCaseGenerationService {
       const { content, usage, modelUsed } = await this.openaiService.generateTestCases(
         system,
         user,
-        request.model || OpenAIModel.GPT_4O_MINI
+        request.model || OpenAIModel.GPT_5_MINI
       );
 
       // Parse and validate generated test cases
@@ -178,6 +178,9 @@ export class TestCaseGenerationService {
    */
   private parseTestCaseResponse(content: string): { testCases: TestCase[]; summary?: TestSummary } {
     try {
+      // Log content for debugging
+      this.logger.log('Parsing OpenAI response content:', { contentLength: content.length, contentPreview: content.substring(0, 200) });
+
       // Attempt direct parse first
       let parsed: any;
       try {
@@ -207,6 +210,7 @@ export class TestCaseGenerationService {
           }
         }
       }
+
 
       // Normalize common alternative shapes
       let testCases = parsed.testCases

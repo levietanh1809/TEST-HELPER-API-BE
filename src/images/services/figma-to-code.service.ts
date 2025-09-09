@@ -35,7 +35,7 @@ export class FigmaToCodeService {
       const componentName = request.componentName || 
         this.generateComponentName(request.figmaResponse);
 
-      this.logger.log(`Converting component: ${componentName} using model: ${request.model || OpenAIModel.GPT_4O}`);
+      this.logger.log(`Converting component: ${componentName} using model: ${request.model || OpenAIModel.GPT_5_MINI}`);
 
       // Generate code using OpenAI
       const { files, usage, modelUsed } = await this.openaiService.generateCodeFromFigma(
@@ -43,7 +43,7 @@ export class FigmaToCodeService {
         request.framework || CodeFramework.VANILLA,
         request.cssFramework || CSSFramework.VANILLA,
         componentName,
-        request.model || OpenAIModel.GPT_4O,
+        request.model || OpenAIModel.GPT_5_MINI,
         {
           includeResponsive: request.includeResponsive,
           includeInteractions: request.includeInteractions,
@@ -201,52 +201,5 @@ export class FigmaToCodeService {
         message: `Failed to create download package: ${error.message}`
       };
     }
-  }
-
-  /**
-   * Validate framework compatibility
-   */
-  private validateFrameworkCompatibility(
-    framework: CodeFramework,
-    cssFramework: CSSFramework
-  ): void {
-    // Check for incompatible combinations
-    // Check for incompatible combinations
-    // Note: All current CSS frameworks are compatible with all frameworks
-
-    if (framework === CodeFramework.VUE && cssFramework === CSSFramework.STYLED_COMPONENTS) {
-      throw new BadRequestException('Vue framework is not compatible with styled-components');
-    }
-
-    // Add more compatibility checks as needed
-  }
-
-  /**
-   * Estimate conversion complexity for pricing/time estimation
-   */
-  private estimateComplexity(figmaResponse: any): 'simple' | 'medium' | 'complex' {
-    let complexity = 'simple';
-
-    // Check component hierarchy depth
-    const getDepth = (node: any): number => {
-      if (!node.children || node.children.length === 0) return 1;
-      return 1 + Math.max(...node.children.map(getDepth));
-    };
-
-    const depth = getDepth(figmaResponse);
-    if (depth > 3) complexity = 'medium';
-    if (depth > 6) complexity = 'complex';
-
-    // Check for complex styling
-    if (figmaResponse.effects && figmaResponse.effects.length > 2) {
-      complexity = complexity === 'simple' ? 'medium' : 'complex';
-    }
-
-    // Check for auto-layout
-    if (figmaResponse.layoutMode) {
-      complexity = complexity === 'simple' ? 'medium' : complexity;
-    }
-
-    return complexity as 'simple' | 'medium' | 'complex';
   }
 }

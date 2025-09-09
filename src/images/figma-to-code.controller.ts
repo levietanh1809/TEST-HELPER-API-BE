@@ -226,92 +226,29 @@ export class FigmaToCodeController {
         defaultOptions: {
           framework: CodeFramework.VANILLA,        // Default: HTML generation
           cssFramework: CSSFramework.VANILLA,      // Default: CSS generation  
-          model: OpenAIModel.GPT_4O_MINI,             
+          model: OpenAIModel.GPT_5_MINI,             
           includeResponsive: true,                // Default: Mobile-first responsive
           includeInteractions: false              // Default: Static components
         },
         modelInfo: [
           {
-            model: OpenAIModel.GPT_4O,
+            model: OpenAIModel.GPT_5_MINI,
             description: "Latest OpenAI model with best code quality",
-            maxTokens: 4096,
-            costPer1K: { input: 0.005, output: 0.015 },
-            recommended: true,
-            category: "Premium",
-            features: ["Highest Quality", "Fast Response", "Latest Technology"]
-          },
-          {
-            model: OpenAIModel.GPT_4O_MINI,
-            description: "Cost-effective model with good performance",
-            maxTokens: 16384,
-            costPer1K: { input: 0.00015, output: 0.0006 },
+            maxTokens: 200000,
+            costPer1K: { input: 0.00025, output: 0.002 },
             recommended: true,
             category: "Budget",
             features: ["Most Cost-Effective", "Large Context", "Good Quality"]
           },
           {
-            model: OpenAIModel.GPT_4_1,
-            description: "Ultra long context model for complex components (200K tokens)",
+            model: OpenAIModel.O4_MINI,
+            description: "Cost-effective model with good performance",
             maxTokens: 200000,
-            costPer1K: { input: 0.01, output: 0.03 },
+            costPer1K: { input: 0.0011, output: 0.0044 },
             recommended: true,
-            category: "Long Context",
-            features: ["Ultra Long Context", "Complex Layouts", "Multi-Component"]
+            category: "High Quality",
+            features: ["Highest Quality", "Fast Response", "Latest Technology"]
           },
-          {
-            model: OpenAIModel.GPT_4_1_MINI,
-            description: "Cost-effective long context model (128K tokens)",
-            maxTokens: 128000,
-            costPer1K: { input: 0.0025, output: 0.01 },
-            recommended: true,
-            category: "Long Context Budget",
-            features: ["Long Context", "Cost-Effective", "Large Components"]
-          },
-          {
-            model: OpenAIModel.GPT_4_TURBO,
-            description: "High-end model for complex conversions",
-            maxTokens: 4096,
-            costPer1K: { input: 0.01, output: 0.03 },
-            recommended: false,
-            category: "Standard",
-            features: ["High Quality", "Complex Logic", "Stable"]
-          },
-          {
-            model: OpenAIModel.GPT_4,
-            description: "Standard GPT-4 model",
-            maxTokens: 8192,
-            costPer1K: { input: 0.03, output: 0.06 },
-            recommended: false,
-            category: "Standard",
-            features: ["Reliable", "Good Context", "Proven"]
-          },
-          {
-            model: OpenAIModel.GPT_4_32K,
-            description: "Large context GPT-4 model",
-            maxTokens: 32768,
-            costPer1K: { input: 0.06, output: 0.12 },
-            recommended: false,
-            category: "Large Context",
-            features: ["Large Context", "Complex Components", "Premium"]
-          },
-          {
-            model: OpenAIModel.GPT_3_5_TURBO,
-            description: "Budget-friendly option",
-            maxTokens: 4096,
-            costPer1K: { input: 0.0005, output: 0.0015 },
-            recommended: false,
-            category: "Budget",
-            features: ["Cheapest", "Fast", "Basic Quality"]
-          },
-          {
-            model: OpenAIModel.GPT_3_5_TURBO_16K,
-            description: "Extended context budget model",
-            maxTokens: 16384,
-            costPer1K: { input: 0.003, output: 0.004 },
-            recommended: false,
-            category: "Budget Extended",
-            features: ["Extended Context", "Budget Friendly", "Decent Quality"]
-          }
         ],
         compatibility: [
           {

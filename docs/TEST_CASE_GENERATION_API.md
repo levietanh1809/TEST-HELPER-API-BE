@@ -1,7 +1,44 @@
-# 🧪 Test Case Generation API - Comprehensive Testing Automation
+# 🧪 Test Case Generation API - Function-Based Testing Automation
 
 ## 🎯 Overview
-Advanced AI-powered test case generation from Software Requirements Specification (SRS) with optional UI testing capabilities using Figma component integration.
+Advanced AI-powered test case generation using **Function-Based Tools Approach** for systematic component analysis. Features include Software Requirements Specification (SRS) analysis with OpenAI function calling for enhanced UI testing from Figma components.
+
+### 🆕 **Function-Based Tools v3.0**
+- ✅ **Systematic Component Analysis** using OpenAI function calling
+- ✅ **Elimination of Hallucinations** through tool-enforced element grounding
+- ✅ **Batch Processing** for large Figma designs (max 10 components per batch)
+- ✅ **Progressive Result Emission** for real-time monitoring
+- ✅ **Enhanced Quality Control** with structured workflow
+
+---
+
+## 🔧 Function-Based Tools Workflow
+
+The new v3.0 uses a systematic 5-phase approach with OpenAI function calling:
+
+```mermaid
+graph TD
+    A[Figma JSON Input] --> B[analyze_figma_frame]
+    B --> C[create_element_inventory]
+    C --> D[generate_component_tests] 
+    D --> E[emit_batch_results]
+    E --> F[finalize_test_suite]
+    F --> G[Complete Test Suite Output]
+    
+    C --> C2[Next Batch]
+    C2 --> D2[generate_component_tests]
+    D2 --> E2[emit_batch_results] 
+    E2 --> F
+```
+
+### Tools Used Internally:
+1. **`analyze_figma_frame(frameId)`** - Discover all components
+2. **`create_element_inventory(componentIds)`** - Create detailed EI (max 10 components)
+3. **`generate_component_tests(batchId, elementInventory, testTypes)`** - Generate tests per batch
+4. **`emit_batch_results(batchId, testCases)`** - Progressive result emission
+5. **`finalize_test_suite(allBatches)`** - Final organization
+
+> **Note**: These tools are used internally by the AI. API users don't call them directly.
 
 ---
 

@@ -7,20 +7,31 @@
  * Supports: HTML, React, Vue, Angular with various CSS frameworks
  */
 
-export const FIGMA_TO_CODE_SYSTEM_TEMPLATE = `You are an expert frontend developer specializing in converting Figma designs to production-ready code.
+export const FIGMA_TO_CODE_SYSTEM_TEMPLATE = `You are an expert frontend developer specializing in converting Figma designs to production-ready code using SYSTEMATIC COMPONENT ANALYSIS.
+
+ADVANCED CONVERSION STRATEGY:
+When processing complex Figma designs, employ a methodical approach:
+1. **Component Discovery**: Identify and categorize all visual elements (frames, text, buttons, images, icons)
+2. **Element Inventory Creation**: Extract precise properties for each component:
+   - Visual properties: fills, strokes, effects, shadows
+   - Dimensional data: absoluteBoundingBox (x, y, width, height)
+   - Typography: fontFamily, fontSize, fontWeight, letterSpacing, lineHeight
+   - Layout constraints: positioning, alignment, spacing
+3. **Batch Processing**: Process components in logical groups for better organization
+4. **Progressive Code Building**: Generate code systematically, ensuring pixel-perfect recreation
 
 CORE EXPERTISE:
-- Pixel-perfect UI recreation from Figma JSON data
+- Systematic Figma JSON analysis and component extraction
+- Pixel-perfect UI recreation with exact measurements and colors
 - Modern {{FRAMEWORK}} development with {{CSS_FRAMEWORK}}
-- Responsive design principles
-- Clean, maintainable code architecture
-- Performance optimization
-- Accessibility best practices
-- When meet a large number of components, MUST break it into each component to think and then merge them together to the final code
-- Must thinking step by step and ensure the final code is working properly
-- Must follow the Figma design and the Figma data. Meet perfect pixel-perfect recreation and content of figma data
-- If has images, dont need to load images. Just need to create border and background for the images
-- DO NOT gen JS code for the component. Just gen HTML and CSS code
+- Generate only layout and styles. NOT INCLUDE any JS references.
+- Clean, maintainable code architecture with proper component structure
+- Performance optimization and best practices
+- Accessibility compliance (ARIA, semantic HTML, keyboard navigation)
+- **Component-based approach**: Break large designs into logical components, analyze each thoroughly, then integrate
+- **Step-by-step methodology**: Systematic analysis → Element extraction → Code generation → Integration
+- **Figma fidelity**: Exact recreation of colors, fonts, spacing, and layout from Figma data
+- **Visual optimization**: For images, create appropriate placeholders with borders and backgrounds
 OUTPUT REQUIREMENTS:
 - Generate ONLY valid JSON with file structure
 - Follow exact schema: {"files": [{"filename": string, "content": string, "type": string, "description": string}]}
@@ -44,7 +55,7 @@ CSS APPROACH:
 
 CRITICAL: Return ONLY the JSON response, no additional text or explanations.`;
 
-export const FIGMA_TO_CODE_USER_TEMPLATE = `Convert this Figma component to {{FRAMEWORK}} code:
+export const FIGMA_TO_CODE_USER_TEMPLATE = `Convert this Figma component to {{FRAMEWORK}} code using SYSTEMATIC COMPONENT ANALYSIS:
 
 FIGMA DATA:
 \`\`\`json
@@ -56,13 +67,43 @@ COMPONENT REQUIREMENTS:
 - Framework: {{FRAMEWORK}}
 - CSS Framework: {{CSS_FRAMEWORK}}{{RESPONSIVE_NOTE}}{{INTERACTIONS_NOTE}}{{ADDITIONAL_REQUIREMENTS}}
 
-CONVERSION INSTRUCTIONS:
-1. Analyze the Figma structure, styles, and layout
-2. Create semantic, accessible {{FRAMEWORK}} code
-3. Implement pixel-perfect styling with {{CSS_FRAMEWORK}}
-4. Ensure proper component architecture
-5. Add appropriate comments and documentation
-6. Include README with usage instructions
+SYSTEMATIC CONVERSION PROCESS:
+
+## PHASE 1: COMPONENT DISCOVERY
+1. **Structure Analysis**: Scan the Figma JSON to identify all visual elements
+2. **Component Categorization**: Group elements by type (layout frames, interactive elements, text, images)
+3. **Hierarchy Mapping**: Understand parent-child relationships and nesting structure
+
+## PHASE 2: ELEMENT INVENTORY CREATION
+4. **Visual Properties Extraction**: For each component, extract:
+   - **Colors**: fills array (solid colors, gradients)
+   - **Typography**: fontFamily, fontSize, fontWeight, letterSpacing, lineHeight
+   - **Dimensions**: absoluteBoundingBox (x, y, width, height)
+   - **Borders**: strokes array (color, width, style)
+   - **Effects**: shadows, blurs, and other visual effects
+   - **Layout**: constraints, positioning, alignment
+
+## PHASE 3: SYSTEMATIC CODE GENERATION
+5. **Progressive Building**: Process components in logical order:
+   - Start with container/layout elements
+   - Add content elements (text, images)
+   - Apply visual styling (colors, typography, effects)
+
+6. **Quality Assurance**: Ensure pixel-perfect recreation:
+   - Exact color matching (hex values from fills)
+   - Precise typography (font properties from Figma)
+   - Accurate dimensions and spacing
+   - Proper responsive behavior
+   - Semantic HTML structure
+   - Accessibility compliance
+
+CONVERSION REQUIREMENTS:
+1. **Systematic Analysis**: Use the inventory approach to ensure no element is missed
+2. **Pixel-Perfect Recreation**: Match Figma design exactly using extracted properties
+3. **Semantic Code**: Create accessible, well-structured {{FRAMEWORK}} code
+4. **Optimized Styling**: Implement efficient {{CSS_FRAMEWORK}} styling
+5. **Component Architecture**: Ensure maintainable, reusable code structure
+6. **Documentation**: Include comprehensive usage instructions
 
 REQUIRED OUTPUT FORMAT:
 \`\`\`json
@@ -137,7 +178,9 @@ export const CSS_INSTRUCTIONS = {
 - Implement responsive design with Tailwind breakpoints
 - Use Tailwind's color palette and spacing system
 - Create custom components when needed
-- Ensure proper Tailwind configuration`,
+- Ensure proper Tailwind configuration
+- Use exact style values from Figma data
+`,
 
   BOOTSTRAP: `
 - Use Bootstrap 5 utility classes and components
@@ -156,10 +199,18 @@ export const CSS_INSTRUCTIONS = {
 
 export const TEMPLATE_METADATA = {
   name: 'figma-to-code',
-  version: '2.0',
-  description: 'Converts Figma components to production-ready code',
+  version: '2.1',
+  description: 'Advanced systematic Figma to code conversion with component analysis',
   category: 'ui-generation',
   supportedFrameworks: ['vanilla', 'react', 'vue', 'angular'],
   supportedCSSFrameworks: ['vanilla', 'tailwind', 'bootstrap', 'styled-components'],
-  lastUpdated: '2024-12-19'
+  lastUpdated: '2024-12-19',
+  improvements: [
+    'Systematic component discovery and analysis',
+    'Element Inventory creation for precise extraction',
+    'Progressive code building methodology',
+    'Enhanced pixel-perfect recreation',
+    'Better component organization and structure',
+    'Improved visual fidelity validation'
+  ]
 };
