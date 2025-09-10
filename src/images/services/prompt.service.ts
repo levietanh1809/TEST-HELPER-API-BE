@@ -7,6 +7,7 @@ import {
   NO_UI_TESTING_INSTRUCTIONS,
   FRAMEWORK_INSTRUCTIONS
 } from '../prompts/test-case-generation.template';
+import { SRS_TO_MARKDOWN_TEMPLATE } from '../prompts/srs-to-markdown.template';
 
 export interface PromptOptions {
   framework: CodeFramework;
@@ -25,6 +26,14 @@ export interface TestCasePromptOptions {
   testingFramework?: TestingFramework;
   additionalRequirements?: string;
   language?: string;
+}
+
+export interface SrsToMarkdownPromptOptions {
+  srsText: string;
+  preserveFormatting?: boolean;
+  outputFormat?: 'markdown' | 'html' | 'plain';
+  projectName?: string;
+  formattingPreferences?: string;
 }
 
 export interface PromptTemplate {
@@ -79,6 +88,25 @@ export class PromptService {
   }
 
   /**
+   * Get optimized prompt for SRS to Markdown conversion
+   */
+  getSrsToMarkdownPrompt(
+    options: SrsToMarkdownPromptOptions
+  ): { system: string; user: string } {
+    const template = this.getSrsToMarkdownTemplate();
+    
+    const systemPrompt = this.buildSrsToMarkdownSystemPrompt(template.system, options);
+    const userPrompt = this.buildSrsToMarkdownUserPrompt(template.user, options);
+
+    this.logger.log(`Generated SRS to Markdown prompt for project: ${options.projectName || 'Unknown'}`);
+    
+    return {
+      system: systemPrompt,
+      user: userPrompt
+    };
+  }
+
+  /**
    * Get test case generation template
    */
   private getTestCaseGenerationTemplate(): PromptTemplate {
@@ -88,6 +116,19 @@ export class PromptService {
       description: TEST_CASE_GENERATION_TEMPLATE.metadata.description,
       version: TEST_CASE_GENERATION_TEMPLATE.metadata.version,
       category: TEST_CASE_GENERATION_TEMPLATE.metadata.category
+    };
+  }
+
+  /**
+   * Get SRS to Markdown template
+   */
+  private getSrsToMarkdownTemplate(): PromptTemplate {
+    return {
+      system: SRS_TO_MARKDOWN_TEMPLATE.system,
+      user: SRS_TO_MARKDOWN_TEMPLATE.user,
+      description: SRS_TO_MARKDOWN_TEMPLATE.metadata.description,
+      version: SRS_TO_MARKDOWN_TEMPLATE.metadata.version,
+      category: SRS_TO_MARKDOWN_TEMPLATE.metadata.category
     };
   }
 
@@ -146,6 +187,28 @@ export class PromptService {
       // Remove the absent-line if SRS is present
       prompt = prompt.replace(absentLine, '');
     }
+
+    return prompt;
+  }
+
+  /**
+   * Build system prompt for SRS to Markdown conversion
+   */
+  private buildSrsToMarkdownSystemPrompt(template: string, options: SrsToMarkdownPromptOptions): string {
+    // The system template doesn't need variable substitution for SRS to Markdown
+    return template;
+  }
+
+  /**
+   * Build user prompt for SRS to Markdown conversion
+   */
+  private buildSrsToMarkdownUserPrompt(template: string, options: SrsToMarkdownPromptOptions): string {
+    let prompt = template
+      .replace('{{SRS_TEXT}}', options.srsText)
+      .replace('{{PRESERVE_FORMATTING}}', options.preserveFormatting ? 'Yes' : 'No')
+      .replace('{{OUTPUT_FORMAT}}', options.outputFormat || 'markdown')
+      .replace('{{PROJECT_NAME}}', options.projectName || 'Unknown Project')
+      .replace('{{FORMATTING_PREFERENCES}}', options.formattingPreferences || 'None');
 
     return prompt;
   }
@@ -458,6 +521,7 @@ Generate the complete implementation now:`,
     return {
       'figma-to-code': this.getFigmaToCodeTemplate(),
       'test-case-generation': this.getTestCaseGenerationTemplate(),
+      'srs-to-markdown': this.getSrsToMarkdownTemplate(),
       // Future templates can be added here:
       // 'code-review': this.getCodeReviewTemplate(),
       // 'documentation': this.getDocumentationTemplate(),

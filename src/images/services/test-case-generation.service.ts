@@ -124,8 +124,8 @@ export class TestCaseGenerationService {
     }
 
     // Validate SRS description length (prevent extremely long inputs)
-    if (request.srsDescription && request.srsDescription.length > 10000) {
-      throw new BadRequestException('SRS description is too long (maximum 10,000 characters)');
+    if (request.srsDescription && request.srsDescription.length > 50000) {
+      throw new BadRequestException('SRS description is too long (maximum 50,000 characters)');
     }
 
     this.logger.log(`Validated test case generation request for: ${request.projectName || 'Unknown project'}`);
@@ -179,7 +179,7 @@ export class TestCaseGenerationService {
   private parseTestCaseResponse(content: string): { testCases: TestCase[]; summary?: TestSummary } {
     try {
       // Log content for debugging
-      this.logger.log('Parsing OpenAI response content:', { contentLength: content.length, contentPreview: content.substring(0, 200) });
+      this.logger.log('Parsing OpenAI test case response content:', { contentLength: content.length, content: content });
 
       // Attempt direct parse first
       let parsed: any;

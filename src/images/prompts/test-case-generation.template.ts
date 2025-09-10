@@ -89,11 +89,26 @@ Each test case must include:
 
 ## OUTPUT FORMAT:
 
-Generate ONLY a valid JSON object with the following structure:
-- testCases: Array of comprehensive test cases
-- summary: Statistical summary of generated tests by category
+Structured output is enforced via JSON Schema (name: "TestCaseBundle").
 
-Focus on quality over quantity. Each test case should be meaningful, executable, and contribute to overall test coverage.
+STRICT RULES:
+- Return ONLY a single JSON object that passes the schema validation.
+- Do NOT include any extra fields beyond the schema (additionalProperties=false).
+- Field names and types must match the schema exactly.
+- Write all human-readable content in Vietnamese.
+
+BREVITY & SIGNAL:
+- Keep titles concise and descriptive (≤ 120 chars).
+- Remove redundancy: don’t restate the same fact across description, steps, and finalExpectedResult.
+- Steps must be atomic, specific, and executable. No generic phrases (e.g., "verify works correctly").
+- Prefer measurable assertions (px, rgb/hex, exact text, flag booleans) over vague wording.
+
+GROUNDING:
+- For UI checks, include the concrete target with figmaId prefix in target field (e.g., "figmaId:...;").
+- Align visual assertions with Figma data (absoluteBoundingBox, fills, strokes, fontWeight, fontSize).
+
+QUALITY OVER QUANTITY:
+Focus on high-value, executable test cases with strong coverage and minimal duplication.
 
 ## LANGUAGE REQUIREMENT:
 All test case titles, descriptions, steps, and expected results MUST be written in: {{LANGUAGE}}.
@@ -130,19 +145,19 @@ Below is the full Figma JSON payload for the target component. Use this data to 
 5. Identify functional flows, business rules, and validation requirements
 6. Map requirements to UI components where applicable
 
-### STEP 3: TEST CASE GENERATION
-7. Generate comprehensive test cases covering:
-   - **Functional requirements validation**: SRS-based functional flows
-   - **UI component testing**: Visual, interaction, and accessibility tests
-   - **Edge cases and boundary conditions**: Input validation, limits, error states
-   - **Integration scenarios**: Component interactions and data flow
-   - **Negative testing**: Invalid inputs, error handling, unauthorized access
+### STEP 3: TEST CASE GENERATION (Quality-Focused)
+7. Generate HIGH-QUALITY test cases:
+   - Functional flows from SRS with explicit preconditions
+   - UI tests grounded by figmaId targets and measurable assertions
+   - Boundary/negative cases only when they add unique coverage
+   - Integration points that impact user-visible behavior
+   - Accessibility checks (roles/labels/focus) when relevant
 
 ### STEP 4: QUALITY ASSURANCE
-8. Ensure all test cases reference actual elements from Figma data
-9. Validate test steps are executable and specific
-10. Eliminate redundant or unnecessary test cases
-11. Organize tests by component/feature for maintainability
+8. Every UI step references a concrete target (figmaId:...)
+9. Steps are executable, specific, and measurable (no vague language)
+10. Deduplicate overlapping cases; merge where appropriate
+11. Prefer fewer, stronger cases over many weak ones
 
 ## GENERATION REQUIREMENTS:
 

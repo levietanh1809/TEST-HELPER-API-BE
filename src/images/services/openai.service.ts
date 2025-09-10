@@ -3,6 +3,7 @@ import { ConfigService } from '@nestjs/config';
 import OpenAI from 'openai';
 import { CodeFramework, CSSFramework, GeneratedCodeFile, OpenAIModel } from '../dto/figma-to-code.dto';
 import { PromptService, PromptOptions } from './prompt.service';
+import { TEST_CASE_BUNDLE_JSON_SCHEMA } from '../prompts/test-case-generation.schema';
 
 @Injectable()
 export class OpenAIService {
@@ -258,7 +259,14 @@ export class OpenAIService {
             content: userPrompt
           }
         ],
-        response_format: { type: 'json_object' }
+        top_p: 1,
+        response_format: {
+          type: 'json_schema',
+          json_schema: {
+            name: 'TestCaseBundle',
+            schema: TEST_CASE_BUNDLE_JSON_SCHEMA
+          }
+        }
       });
 
       const message = response.choices[0]?.message;
@@ -310,6 +318,97 @@ export class OpenAIService {
       }
       
       throw new BadRequestException(`Test case generation failed: ${error.message}`);
+    }
+  }
+
+  /**
+   * Generate markdown from SRS text using OpenAI
+   */
+  async generateMarkdown(
+    systemPrompt: string,
+    userPrompt: string,
+    model: OpenAIModel = OpenAIModel.GPT_5_MINI
+  ): Promise<{
+    content: string;
+    usage: {
+      promptTokens: number;
+      completionTokens: number;
+      totalTokens: number;
+    };
+    modelUsed: OpenAIModel;
+  }> {
+    try {
+      this.logger.log(`Starting SRS to Markdown conversion with model: ${model}`);
+
+      // Validate model
+      this.validateModel(model);
+
+      const response = await this.openai.chat.completions.create({
+        model: model,
+        messages: [
+          {
+            role: 'system',
+            content: systemPrompt
+          },
+          {
+            role: 'user',
+            content: userPrompt
+          }
+        ],
+        top_p: 1,
+        frequency_penalty: 0,
+        presence_penalty: 0
+      });
+
+      const message = response.choices[0]?.message;
+      const usage = response.usage;
+
+      if (!message) {
+        throw new Error('No message received from OpenAI');
+      }
+
+      if (!usage) {
+        throw new Error('No usage information received from OpenAI');
+      }
+
+      const content = message.content;
+
+      if (!content) {
+        this.logger.error('No content received from OpenAI', { 
+          message: message,
+          hasContent: !!message.content
+        });
+        throw new Error('No content received from OpenAI');
+      }
+
+      this.logger.log(`SRS to Markdown conversion completed. Tokens used: ${usage.total_tokens}`);
+
+      return {
+        content,
+        usage: {
+          promptTokens: usage.prompt_tokens,
+          completionTokens: usage.completion_tokens,
+          totalTokens: usage.total_tokens
+        },
+        modelUsed: model
+      };
+
+    } catch (error) {
+      this.logger.error('Error generating markdown with OpenAI', error);
+      
+      if (error.response?.status === 429) {
+        throw new BadRequestException('OpenAI API rate limit exceeded. Please try again later.');
+      }
+      
+      if (error.response?.status === 401) {
+        throw new BadRequestException('OpenAI API authentication failed. Please check API key.');
+      }
+      
+      if (error.response?.status === 400) {
+        throw new BadRequestException(`OpenAI API request error: ${error.response?.data?.error?.message || 'Invalid request'}`);
+      }
+      
+      throw new BadRequestException(`SRS to Markdown conversion failed: ${error.message}`);
     }
   }
 }

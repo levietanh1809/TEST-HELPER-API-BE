@@ -7,45 +7,52 @@
 ### New Team Members (15 minutes)
 ```bash
 # Essential reading path:
-1. PROJECT_OVERVIEW.md (5 min) - Understand what we're building
-2. AI_QUICK_REFERENCE.md (3 min) - Print & keep handy!
-3. API_DOCUMENTATION.md (7 min) - Core endpoints & integration
+1. WORKFLOW_MASTER.md (10 min) - Complete workflow guide
+2. core/knowledge-base/PROJECT_OVERVIEW.md (5 min) - Understand what we're building
 ```
 
 ### Daily Development (2 minutes)
 ```bash
 # AI-powered workflow:
-1. "AI, load Memory Bank context for today's work"
+1. "AI, load WORKFLOW_MASTER.md and today's development context"
 2. Follow AI recommendations based on documented patterns
 3. Update Memory Bank with new insights
 ```
 
 ## 📂 Memory Bank Structure
 
+### 🚀 **MAIN WORKFLOW** (Start here)
+
+| Document | Purpose | When to Read |
+|----------|---------|--------------|
+| **[WORKFLOW_MASTER.md](./WORKFLOW_MASTER.md)** | Complete AI workflow guide | **Daily use - Main reference** |
+| **[WORKFLOW_DIAGRAMS.md](./WORKFLOW_DIAGRAMS.md)** | Mermaid diagrams for AI implementation | **AI code generation reference** |
+
 ### 📍 **CORE KNOWLEDGE** (Essential for everyone)
 
 | Document | Purpose | When to Read |
 |----------|---------|--------------|
-| **[PROJECT_OVERVIEW.md](./PROJECT_OVERVIEW.md)** | System architecture & goals | First time, major changes |
-| **[AI_QUICK_REFERENCE.md](./AI_QUICK_REFERENCE.md)** | Daily AI workflows | **Print it! Use daily** |
-| **[API_DOCUMENTATION.md](./API_DOCUMENTATION.md)** | Endpoints & integration | API development |
+| **[core/knowledge-base/PROJECT_OVERVIEW.md](./core/knowledge-base/PROJECT_OVERVIEW.md)** | System architecture & goals | First time, major changes |
+| **[core/knowledge-base/AI_QUICK_REFERENCE.md](./core/knowledge-base/AI_QUICK_REFERENCE.md)** | Daily AI workflows | **Print it! Use daily** |
+| **[core/knowledge-base/API_DOCUMENTATION.md](./core/knowledge-base/API_DOCUMENTATION.md)** | Endpoints & integration | API development |
 
 ### 🔧 **TECHNICAL GUIDES** (Development reference)
 
 | Document | Purpose | When to Read |
 |----------|---------|--------------|
-| **[TECHNICAL_IMPLEMENTATION.md](./TECHNICAL_IMPLEMENTATION.md)** | Core technical concepts | Feature development |
-| **[AI_MODELS_OPTIMIZATION.md](./AI_MODELS_OPTIMIZATION.md)** | Cost-effective AI usage | Model decisions |
-| **[TROUBLESHOOTING.md](./TROUBLESHOOTING.md)** | Known issues & quick fixes | Problem solving |
-| **[DEVELOPMENT_GUIDELINES.md](./DEVELOPMENT_GUIDELINES.md)** | Code standards & patterns | Code reviews |
+| **[technical/architecture/TECHNICAL_IMPLEMENTATION.md](./technical/architecture/TECHNICAL_IMPLEMENTATION.md)** | Core technical concepts | Feature development |
+| **[core/workflows/AI_MODELS_OPTIMIZATION.md](./core/workflows/AI_MODELS_OPTIMIZATION.md)** | Cost-effective AI usage | Model decisions |
+| **[technical/troubleshooting/TROUBLESHOOTING.md](./technical/troubleshooting/TROUBLESHOOTING.md)** | Known issues & quick fixes | Problem solving |
+| **[core/workflows/DEVELOPMENT_GUIDELINES.md](./core/workflows/DEVELOPMENT_GUIDELINES.md)** | Code standards & patterns | Code reviews |
 
 ### 📖 **SPECIALIZED DOCS** (Specific use cases)
 
 | Document | Purpose | When to Read |
 |----------|---------|--------------|
-| **[FIGMA_INTEGRATION.md](./FIGMA_INTEGRATION.md)** | Figma processing logic | UI-related features |
-| **[TEST_CASE_GENERATION_API.md](./TEST_CASE_GENERATION_API.md)** | Test generation specifics | Testing features |
-| **[FIGMA_TO_CODE_API.md](./FIGMA_TO_CODE_API.md)** | Code generation specifics | Code gen features |
+| **[specialized/integrations/SRS_TO_MARKDOWN_FRONTEND_SPECIFICATION.md](./specialized/integrations/SRS_TO_MARKDOWN_FRONTEND_SPECIFICATION.md)** | **Frontend ideas & concepts** | **Frontend team brainstorming** |
+| **[specialized/integrations/FIGMA_INTEGRATION.md](./specialized/integrations/FIGMA_INTEGRATION.md)** | Figma processing logic | UI-related features |
+| **[specialized/components/TEST_CASE_GENERATION_API.md](./specialized/components/TEST_CASE_GENERATION_API.md)** | Test generation specifics | Testing features |
+| **[specialized/integrations/FIGMA_TO_CODE_API.md](./specialized/integrations/FIGMA_TO_CODE_API.md)** | Code generation specifics | Code gen features |
 
 ## ⚡ Current Status
 
@@ -53,7 +60,9 @@
 - ✅ **AI-Optimized Development** - 75-90% efficiency gains
 - ✅ **Cost-Optimized AI Models** - 95% cost reduction with gpt-5-mini
 - ✅ **Function-Based Tools** - Systematic component analysis
+- ✅ **SRS to Markdown API** - Convert SRS text to formatted markdown
 - ✅ **Professional Memory Bank** - Streamlined knowledge system
+ - ✅ **SRS→Markdown Output Policy** - Simplified prompt: only Markdown body, no links/URLs/emails, no code fences
 
 ### 🤖 **Production AI Configuration**
 ```typescript
@@ -64,6 +73,7 @@ O4_MINI: "$1.10/$4.40 per 1M tokens"    // Premium - complex reasoning only
 
 ### 🔧 **Key Capabilities**
 - **Systematic Test Generation** - AI-powered with Figma integration
+- **SRS to Markdown Conversion** - Excel-compatible markdown formatting
 - **Recursive Component Processing** - Auto-decomposition of large components  
 - **Multi-Framework Code Generation** - React, Vue, Angular support
 - **Cost-Aware Operations** - Automatic cost optimization

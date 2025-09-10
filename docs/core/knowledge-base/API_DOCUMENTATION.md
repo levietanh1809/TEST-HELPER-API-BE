@@ -6,6 +6,65 @@
 
 ---
 
+## 📝 SRS to Markdown API
+
+### 1. Convert SRS Text to Markdown
+**Endpoint**: `POST /api/images/srs-to-markdown/convert`
+
+**Description**: Converts Software Requirements Specification (SRS) text into well-formatted markdown with Excel copy-paste compatibility.
+
+**Request Body**:
+```typescript
+{
+  srsText: string,                    // Required: SRS text content to convert
+  preserveFormatting?: boolean,       // Optional: Preserve existing markdown (default: true)
+  model?: 'gpt-5-mini'|'o4-mini',    // Optional: AI model (default: gpt-5-mini)
+  outputFormat?: 'markdown'|'html'|'plain'  // Optional: Output format (default: markdown)
+}
+```
+
+**Response**:
+```typescript
+{
+  success: boolean,
+  data?: {
+    markdownContent: string,          // Formatted markdown output
+    originalLength: number,           // Original SRS text length
+    processedLength: number,          // Processed markdown length
+    model: string,                    // AI model used
+    generatedAt: string               // Generation timestamp
+  },
+  message?: string,
+  processingTime?: number,
+  openaiUsage?: {
+    promptTokens: number,
+    completionTokens: number,
+    totalTokens: number,
+    cost: number                      // USD cost
+  }
+}
+```
+
+### 2. SRS to Markdown Health Check
+**Endpoint**: `GET /api/images/srs-to-markdown/health`
+
+**Response**:
+```typescript
+{
+  status: string,                     // "healthy"
+  timestamp: string                   // Current timestamp
+}
+```
+
+**Key Features**:
+- ✅ **Excel Compatibility**: Output optimized for copy-paste into Excel cells
+- ✅ **Format Preservation**: Smart handling of existing markdown formatting
+- ✅ **Cost Optimized**: Uses gpt-5-mini by default (95% cost reduction)
+- ✅ **Comprehensive Validation**: Input validation with 50,000 character limit
+- ✅ **Structured Logging**: Full logging and error tracking
+
+---
+
 ## 🧪 Test Case Generation API
 
 ### 1. Generate Test Cases from SRS

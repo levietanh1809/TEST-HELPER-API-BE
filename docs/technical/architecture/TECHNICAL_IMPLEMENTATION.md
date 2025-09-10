@@ -106,6 +106,29 @@ getCostPer1KTokens(model: OpenAIModel) {
 
 ## 📡 Core API Endpoints
 
+### SRS to Markdown Conversion
+```typescript
+POST /images/srs-to-markdown/convert
+{
+  "srsText": "User login functionality with validation...",
+  "preserveFormatting": true,
+  "model": "gpt-5-mini",
+  "outputFormat": "markdown"
+}
+
+Response: {
+  "success": true,
+  "data": {
+    "markdownContent": "# User Login Functionality\n\n## Overview\n...",
+    "originalLength": 1250,
+    "processedLength": 1450,
+    "model": "gpt-5-mini",
+    "generatedAt": "2025-09-10T17:00:00Z"
+  },
+  "openaiUsage": { totalTokens: 850, cost: 0.00021 }
+}
+```
+
 ### Test Case Generation
 ```typescript
 POST /images/test-case-generation
@@ -282,6 +305,23 @@ describe('Test Case Generation E2E', () => {
     expect(response.body.data.testCases.length).toBeGreaterThan(0);
   });
 });
+
+describe('SRS to Markdown E2E', () => {
+  it('should convert SRS text to markdown', async () => {
+    const response = await request(app.getHttpServer())
+      .post('/images/srs-to-markdown/convert')
+      .send({
+        srsText: "User login functionality with validation",
+        preserveFormatting: true,
+        model: "gpt-5-mini"
+      })
+      .expect(200);
+      
+    expect(response.body.success).toBe(true);
+    expect(response.body.data.markdownContent).toContain('#');
+    expect(response.body.data.originalLength).toBeGreaterThan(0);
+  });
+});
 ```
 
 ## 🔧 Development Best Practices
@@ -292,9 +332,19 @@ describe('Test Case Generation E2E', () => {
 src/
 ├── images/
 │   ├── dto/           # Data Transfer Objects
+│   │   ├── srs-to-markdown.dto.ts      # SRS to Markdown DTOs
+│   │   ├── test-case-generation.dto.ts # Test case DTOs
+│   │   └── figma-to-code.dto.ts        # Figma DTOs
 │   ├── services/      # Business logic
+│   │   ├── srs-to-markdown.service.ts  # SRS conversion service
+│   │   ├── test-case-generation.service.ts
+│   │   └── openai.service.ts           # AI integration
 │   ├── prompts/       # AI prompt templates
+│   │   ├── srs-to-markdown.template.ts # SRS conversion prompts
+│   │   └── test-case-generation.template.ts
 │   └── controllers/   # HTTP endpoints
+│       ├── srs-to-markdown.controller.ts
+│       └── test-case-generation.controller.ts
 ```
 
 ### Configuration Management
@@ -320,6 +370,86 @@ this.logger.log('Test case generation started', {
   model: request.model,
   figmaComponents: request.figmaResponse ? Object.keys(request.figmaResponse).length : 0
 });
+
+// SRS to Markdown logging
+this.logger.log('SRS to Markdown conversion started', {
+  srsLength: request.srsText?.length,
+  preserveFormatting: request.preserveFormatting,
+  model: request.model,
+  outputFormat: request.outputFormat
+});
+```
+
+### SRS to Markdown Service Pattern
+```typescript
+@Injectable()
+export class SrsToMarkdownService {
+  private readonly logger = new Logger(SrsToMarkdownService.name);
+
+  constructor(
+    private readonly promptService: PromptService,
+    private readonly openaiService: OpenAIService,
+  ) {}
+
+  async convertSrsToMarkdown(request: SrsToMarkdownRequestDto): Promise<SrsToMarkdownResponseDto> {
+    const startTime = Date.now();
+
+    try {
+      this.logger.log('Starting SRS to Markdown conversion');
+      this.validateRequest(request);
+
+      // Generate prompts using centralized prompt service
+      const { system, user } = this.promptService.getSrsToMarkdownPrompt(
+        request.srsText,
+        request.preserveFormatting
+      );
+
+      // Call OpenAI with cost optimization
+      const { content, usage, modelUsed } = await this.openaiService.generateMarkdown(
+        system,
+        user,
+        request.model || OpenAIModel.GPT_5_MINI
+      );
+
+      const processingTime = Date.now() - startTime;
+
+      return {
+        success: true,
+        data: {
+          markdownContent: content,
+          originalLength: request.srsText.length,
+          processedLength: content.length,
+          model: modelUsed,
+          generatedAt: new Date().toISOString(),
+        },
+        processingTime,
+        openaiUsage: {
+          promptTokens: usage.promptTokens,
+          completionTokens: usage.completionTokens,
+          totalTokens: usage.totalTokens,
+          cost: this.openaiService.calculateCostForModel(modelUsed, usage)
+        }
+      };
+
+    } catch (error) {
+      this.logger.error('SRS to Markdown conversion failed', error);
+      return {
+        success: false,
+        message: `Conversion failed: ${error.message}`,
+        processingTime: Date.now() - startTime
+      };
+    }
+  }
+
+  private validateRequest(request: SrsToMarkdownRequestDto): void {
+    if (!request.srsText || request.srsText.trim().length === 0) {
+      throw new BadRequestException('SRS text is required');
+    }
+    if (request.srsText.length > 50000) {
+      throw new BadRequestException('SRS text is too long (maximum 50,000 characters)');
+    }
+  }
+}
 ```
 
 ## ⚡ Performance Optimizations
