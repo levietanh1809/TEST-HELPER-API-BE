@@ -3,6 +3,7 @@ import { ValidationPipe, Logger } from '@nestjs/common';
 import { AppModule } from './app.module';
 import { WinstonModule } from 'nest-winston';
 import { createWinstonConfig } from '../logger.config';
+import * as bodyParser from 'body-parser';
 
 async function bootstrap() {
   const logger = new Logger('Bootstrap');
@@ -10,6 +11,10 @@ async function bootstrap() {
   const app = await NestFactory.create(AppModule, {
     logger: WinstonModule.createLogger(createWinstonConfig()),
   });
+  // Increase JSON/body size limits to support large SRS and export payloads
+  app.use(bodyParser.json({ limit: '10mb' }));
+  app.use(bodyParser.urlencoded({ limit: '10mb', extended: true }));
+
 
   // Enable CORS for frontend integration
   app.enableCors({

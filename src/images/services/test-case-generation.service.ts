@@ -124,8 +124,8 @@ export class TestCaseGenerationService {
     }
 
     // Validate SRS description length (prevent extremely long inputs)
-    if (request.srsDescription && request.srsDescription.length > 50000) {
-      throw new BadRequestException('SRS description is too long (maximum 50,000 characters)');
+    if (request.srsDescription && request.srsDescription.length > 200000) {
+      throw new BadRequestException('SRS description is too long (maximum 200,000 characters)');
     }
 
     this.logger.log(`Validated test case generation request for: ${request.projectName || 'Unknown project'}`);

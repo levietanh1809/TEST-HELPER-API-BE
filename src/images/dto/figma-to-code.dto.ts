@@ -17,7 +17,8 @@ export enum CSSFramework {
 export enum OpenAIModel {
   // Primary Production Models Only
   GPT_5_MINI = 'gpt-5-mini',
-  O4_MINI = 'o4-mini'
+  O4_MINI = 'o4-mini',
+  GPT_5 = 'gpt-5'
 }
 
 export class FigmaToCodeRequestDto {

@@ -193,8 +193,8 @@ export class TestCaseGenerationController {
    */
   private validateGenerationRequest(request: TestCaseGenerationRequestDto): void {
     // SRS is optional; validate only if provided
-    if (request.srsDescription && request.srsDescription.length > 10000) {
-      throw new BadRequestException('SRS description is too long (maximum 10,000 characters)');
+    if (request.srsDescription && request.srsDescription.length > 200000) {
+      throw new BadRequestException('SRS description is too long (maximum 200,000 characters)');
     }
 
     if (request.includeUITests && !request.figmaResponse) {

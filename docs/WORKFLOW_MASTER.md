@@ -477,7 +477,6 @@ docs/
    "AI, load Memory Bank context for new team member onboarding. Please read:
    1. docs/MEMORY_BANK_INDEX.md for project overview
    2. docs/core/knowledge-base/PROJECT_OVERVIEW.md for architecture
-   3. docs/core/workflows/IMPLEMENTATION_GUIDE.md for workflow
    
    Provide a comprehensive onboarding plan."
    ```

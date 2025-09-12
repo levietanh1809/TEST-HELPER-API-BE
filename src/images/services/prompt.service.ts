@@ -160,7 +160,7 @@ export class PromptService {
    */
   private buildTestCaseUserPrompt(template: string, options: TestCasePromptOptions): string {
     let prompt = template
-      .replace('{{LANGUAGE}}', options.language || 'Vietnamese')
+      .replace('{{LANGUAGE}}', options.language || 'English')
       .replace('{{SRS_DESCRIPTION}}', options.srsDescription || 'No specific SRS description provided')
       .replace('{{PROJECT_NAME}}', options.projectName || 'Unknown Project')
       .replace('{{TESTING_FRAMEWORK}}', options.testingFramework || TestingFramework.MANUAL)

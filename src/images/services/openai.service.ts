@@ -188,6 +188,8 @@ export class OpenAIService {
         return 200000; // 200K TPM limit
       case OpenAIModel.O4_MINI:
         return 200000; // 200K TPM limit
+      case OpenAIModel.GPT_5:
+        return 200000; // GPT-5 context window (align with 5-mini defaults)
         
       default:
         return 200000; // Default to 200K TPM
@@ -204,6 +206,8 @@ export class OpenAIService {
         return { input: 0.00025, output: 0.002 }; // gpt-5-mini: $0.25 input/$2.00 output per 1M tokens
       case OpenAIModel.O4_MINI:
         return { input: 0.0011, output: 0.0044 }; // o4-mini: $1.10 input/$4.40 output per 1M tokens
+      case OpenAIModel.GPT_5:
+        return { input: 0.003, output: 0.01 }; // approximate; adjust per your pricing
         
       default:
         return { input: 0.00025, output: 0.002 }; // Default to gpt-5-mini pricing
@@ -290,7 +294,7 @@ export class OpenAIService {
         throw new Error('No content received from OpenAI');
       }
 
-      this.logger.log(`Test case generation completed. Tokens used: ${usage.total_tokens}`);
+      this.logger.log(`Test case generation completed. Tokens details: ${usage.prompt_tokens_details}`);
 
       return {
         content,
@@ -382,7 +386,6 @@ export class OpenAIService {
       }
 
       this.logger.log(`SRS to Markdown conversion completed. Tokens used: ${usage.total_tokens}`);
-
       return {
         content,
         usage: {

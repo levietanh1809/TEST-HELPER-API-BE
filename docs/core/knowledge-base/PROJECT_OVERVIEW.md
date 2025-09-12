@@ -18,7 +18,7 @@
 NestJS 11.x + TypeScript
 
 // AI Integration
-OpenAI GPT Models (GPT-5 Mini, O4 Mini)
+OpenAI GPT Models (GPT-5, GPT-5 Mini, O4 Mini)
 
 // Database
 // TBD - Currently using in-memory storage
@@ -44,7 +44,7 @@ src/
 ### 1. **Test Case Generation**
 - **Input**: Requirements, user stories, API specifications
 - **Output**: Comprehensive test cases with multiple scenarios
-- **AI Models**: GPT-5 Mini (cost-optimized), O4 Mini (premium)
+- **AI Models**: GPT-5 (full), GPT-5 Mini (cost-optimized), O4 Mini (premium)
 
 ### 2. **Figma to Code Conversion**
 - **Input**: Figma design files, component specifications
@@ -77,11 +77,14 @@ src/
 
 ### ✅ Completed Features
 - [x] Core AI service architecture
-- [x] Test case generation API
-- [2] Figma to code conversion
+- [x] Test case generation API with granular test case support (200,000 char SRS limit)
+- [x] Figma to code conversion
 - [x] Cost optimization system
 - [x] Memory bank documentation system
 - [x] Daily tracking workflow
+- [x] English-language prompt templates for consistency
+- [x] Enhanced SRS input validation (200,000 characters) for both test case generation and SRS to markdown
+- [x] Test case export API with markdown and Excel formats, grouping capabilities (parent-child row structure, clean content without figmaId references)
 
 ### 🔄 In Development
 - [ ] Database integration

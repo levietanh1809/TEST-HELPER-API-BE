@@ -7,11 +7,11 @@ import { OpenAIModel } from './figma-to-code.dto';
 export class SrsToMarkdownRequestDto {
   /**
    * Software Requirements Specification text to convert
-   * Required field with maximum 50,000 characters
+   * Required field with maximum 200,000 characters
    */
   @IsString()
   @IsNotEmpty()
-  @MaxLength(50000, { message: 'SRS text cannot exceed 50,000 characters' })
+  @MaxLength(200000, { message: 'SRS text cannot exceed 200,000 characters' })
   srsText: string;
 
   /**

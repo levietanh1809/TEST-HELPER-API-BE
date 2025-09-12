@@ -46,6 +46,19 @@
 "Review AI model cost guidelines and suggest optimal model"  
 "Check implementation patterns for [component type]"
 
+# Test Case Generation
+"Generate granular test cases with specific measurements"
+"Use configurable language for test case content (English, Vietnamese, etc.)"
+"Support GPT-5 model for higher quality generation when needed"
+"Focus on individual actions rather than comprehensive flows"
+
+# Test Case Export
+"Export test cases to markdown or Excel with parent-child row format"
+"Use parent rows for test case info (no expected result) and child rows for steps"
+"Format steps as 'Step X: action' in procedure column"
+"Ensure clean content without figmaId references in descriptions"
+"Excel export fills template sheet 'Test Cases' from row 17, preserves styles and merges"
+
 # Code Quality
 "Validate against Memory Bank coding standards"
 "Suggest improvements based on documented patterns"

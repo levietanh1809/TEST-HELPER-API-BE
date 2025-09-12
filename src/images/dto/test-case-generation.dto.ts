@@ -1,4 +1,4 @@
-import { IsString, IsOptional, IsBoolean, IsNotEmpty, IsObject } from 'class-validator';
+import { IsString, IsOptional, IsBoolean, IsNotEmpty, IsObject, MaxLength } from 'class-validator';
 import { OpenAIModel } from './figma-to-code.dto';
 
 /**
@@ -9,9 +9,11 @@ export class TestCaseGenerationRequestDto {
    * Software Requirements Specification description
    * This will be analyzed to create comprehensive test cases
    * Optional - if not provided, will generate general test cases
+   * Maximum 200,000 characters
    */
   @IsString()
   @IsOptional()
+  @MaxLength(200000, { message: 'SRS description cannot exceed 200,000 characters' })
   srsDescription?: string;
 
   /**

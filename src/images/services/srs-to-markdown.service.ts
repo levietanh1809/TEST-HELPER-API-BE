@@ -119,8 +119,8 @@ export class SrsToMarkdownService {
       throw new BadRequestException('SRS text is required and cannot be empty');
     }
 
-    if (request.srsText.length > 50000) {
-      throw new BadRequestException('SRS text cannot exceed 50,000 characters');
+    if (request.srsText.length > 200000) {
+      throw new BadRequestException('SRS text cannot exceed 200,000 characters');
     }
 
     // Validate output format
